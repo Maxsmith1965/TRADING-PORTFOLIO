@@ -166,7 +166,7 @@ body {
 .stock-note { font-size: 10px; color: var(--muted2); line-height: 1.3; flex: 1; margin-left: 8px; text-align: right; }
 .stock-alloc { font-size: 11px; font-weight: 700; }
 
-.stock-flags { position: absolute; top: 8px; right: 40px; display: flex; gap: 3px; }
+.stock-flags { display: flex; justify-content: flex-end; margin-bottom: 2px; }
 .flag {
   font-size: 8px;
   padding: 2px 5px;
@@ -732,14 +732,13 @@ function renderCard(stock, category) {
     ? '<span class="flag earnings">⚠ EARNINGS</span>' : '';
 
   return `
-    <div class="stock-card" style="border-left-color:${borderCol}" onclick="openStressTester('${stock.ticker}')">
-      <div class="stock-flags">${earningsFlag}</div>
-      <div class="stock-card-top">
+   <div class="stock-card-top">
         <div>
           <div class="stock-ticker" style="color:${isBC ? 'var(--gold)' : 'var(--blue)'}">${stock.ticker}</div>
           <div class="stock-name">${stock.name}</div>
         </div>
         <div class="stock-right">
+          ${earningsFlag}
           ${priceHTML}
           ${changeHTML}
           <div class="stock-alloc" style="color:${allocCol}">${stock.alloc}%</div>
