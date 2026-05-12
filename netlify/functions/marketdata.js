@@ -56,15 +56,14 @@ exports.handler = async (event) => {
   }
 
   const ALL_TICKERS = [
-  'NVDA','AVGO','TSM','ASML','MSFT','AAPL','GOOGL','META','AMZN',
-  'MU','CEG','MBLY','CIEN','LEU','SOLS','MP','TER','VRT',
-  'AMD','IREN','BE','TSLA','AMTM','COHR','WDC','SNDK','XRP-USD'
-];
+    'NVDA','AVGO','TSM','ASML','MSFT','AAPL','GOOGL','META','AMZN',
+    'MU','CEG','MBLY','CIEN','LEU','SOLS','MP','TER','VRT',
+    'AMD','IREN','BE','TSLA','AMTM','COHR','WDC','SNDK','XRP'
+  ];
 
   try {
     const results = {};
 
-    // Fetch all stocks — Finnhub quote endpoint
     const fetchPromises = ALL_TICKERS.map(async (ticker) => {
       try {
         const [quote, profile] = await Promise.all([
@@ -90,17 +89,14 @@ exports.handler = async (event) => {
             volume: 'N/A'
           };
         }
-      } catch(e) {
-        // Skip failed tickers
-      }
+      } catch(e) {}
     });
 
     await Promise.all(fetchPromises);
 
-    // Fetch VIX using CBOE data
     let vixData = { value: 'N/A', change: '0', level: 'Check TradingView' };
     try {
-      const vixQuote = await httpsGet(`https://finnhub.io/api/v1/quote?symbol=^VIX&token=${API_KEY}`);
+      const vixQuote = await httpsGet(`https://finnhub.io/api/v1/quote?symbol=CBOE%3AVIX&token=${API_KEY}`);
       if (vixQuote && vixQuote.c) {
         const vixVal = vixQuote.c;
         const vixPrev = vixQuote.pc;
