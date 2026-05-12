@@ -56,10 +56,10 @@ exports.handler = async (event) => {
   }
 
   const ALL_TICKERS = [
-    'NVDA','AVGO','TSM','ASML','MSFT','AAPL','GOOGL','META','AMZN',
-    'MU','CEG','MBLY','CIEN','LEU','SOLS','MP','TER','VRT',
-    'AMD','IREN','BE','TSLA','AMTM','COHR','WDC'
-  ];
+  'NVDA','AVGO','TSM','ASML','MSFT','AAPL','GOOGL','META','AMZN',
+  'MU','CEG','MBLY','CIEN','LEU','SOLS','MP','TER','VRT',
+  'AMD','IREN','BE','TSLA','AMTM','COHR','WDC','SNDK','XRP-USD'
+];
 
   try {
     const results = {};
