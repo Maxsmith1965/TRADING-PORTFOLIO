@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Trading Portfolio v3">
+<meta name="apple-mobile-web-app-title" content="Trading Portfolio">
 <meta name="theme-color" content="#060708">
 <title>Trading Portfolio</title>
 <style>
@@ -943,7 +943,7 @@ const icoStyles = {
   pass:{bg:'#3d9e6e',col:'#fff',icon:'✓'},
   fail:{bg:'#c94a4a',col:'#fff',icon:'✕'},
   warn:{bg:'#c97d30',col:'#fff',icon:'!'},
-  neutral:{bg:'#252c32',col:'#6b7585',icon:'–'},
+  neutral:{bg:'#252c32',col:'#6b7585',icon:'-'},
   beer:{bg:'#c8973e',col:'#060708',icon:'🍺'},
   froth:{bg:'#252c32',col:'#6b7585',icon:'🫧'}
 };
@@ -1517,6 +1517,8 @@ function openPhilosophy(ticker) {
   if (input) input.value = ticker;
   runPhilosophy();
 }
+
+function openStressTester(ticker) {
   showView('tester');
   const input = document.getElementById('tickerInput');
   if (input) input.value = ticker;
