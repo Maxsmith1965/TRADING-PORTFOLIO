@@ -1070,6 +1070,107 @@ function selectTicker(ticker) {
 
 // ── PHILOSOPHICAL SCORING ENGINE ─────────────────────────
 
+// ── PRICE AWARENESS ENGINE ───────────────────────────────
+// Gets live price data and calculates price appropriateness scores
+function getPriceContext(ticker, d) {
+  const live = getLivePrice(ticker);
+  const ctx = {
+    hasLive: false,
+    priceRaw: null,
+    pe: null,
+    week52High: null,
+    week52Low: null,
+    // Derived metrics
+    frothPremium: d ? d.froth : 50,        // froth % as overvaluation proxy
+    beerDiscount: d ? d.beer : 50,          // beer % as value proxy
+    rangePosition: 50,                      // 0=52w low, 100=52w high
+    peScore: 50,                            // 0=very expensive, 100=very cheap
+    fearGreed: 50,                          // 0=extreme fear, 100=extreme greed
+    marginOfSafety: 'UNKNOWN',
+    valuationVerdict: 'UNKNOWN',
+    fearGreedLabel: 'NEUTRAL'
+  };
+  if (!live) return ctx;
+  ctx.hasLive = true;
+  ctx.priceRaw = live.priceRaw;
+  // Parse P/E - handle N/A
+  const peRaw = parseFloat(live.pe);
+  ctx.pe = isNaN(peRaw) ? null : peRaw;
+  // Parse 52-week range
+  if (live.week52High && live.week52High !== 'N/A') {
+    ctx.week52High = parseFloat(live.week52High.replace('$',''));
+  }
+  if (live.week52Low && live.week52Low !== 'N/A') {
+    ctx.week52Low = parseFloat(live.week52Low.replace('$',''));
+  }
+  // Calculate range position (0-100, 0=at 52w low, 100=at 52w high)
+  if (ctx.week52High && ctx.week52Low && ctx.week52High > ctx.week52Low) {
+    ctx.rangePosition = Math.round(((ctx.priceRaw - ctx.week52Low) / (ctx.week52High - ctx.week52Low)) * 100);
+    ctx.rangePosition = Math.min(100, Math.max(0, ctx.rangePosition));
+  }
+  // P/E scoring - appropriate ranges by risk type
+  if (ctx.pe !== null) {
+    if (d.risk === 'MEDIUM' || d.risk === 'LOW') {
+      // Quality stocks: <20x=cheap, 20-35x=fair, 35-50x=expensive, >50x=very expensive
+      if (ctx.pe < 15) ctx.peScore = 90;
+      else if (ctx.pe < 20) ctx.peScore = 80;
+      else if (ctx.pe < 30) ctx.peScore = 65;
+      else if (ctx.pe < 40) ctx.peScore = 50;
+      else if (ctx.pe < 55) ctx.peScore = 30;
+      else ctx.peScore = 15;
+    } else {
+      // Growth/high risk stocks: higher P/E tolerated
+      if (ctx.pe < 20) ctx.peScore = 85;
+      else if (ctx.pe < 35) ctx.peScore = 70;
+      else if (ctx.pe < 60) ctx.peScore = 50;
+      else if (ctx.pe < 100) ctx.peScore = 30;
+      else ctx.peScore = 15;
+    }
+  }
+  // Fear/Greed composite (0=extreme fear, 100=extreme greed)
+  // Components: range position (40%), froth premium (40%), P/E premium (20%)
+  const rangeGreed = ctx.rangePosition;
+  const frothGreed = d.froth;  // froth % directly maps to greed
+  const peGreed = ctx.pe !== null ? Math.min(100, (ctx.pe / 60) * 100) : 50;
+  ctx.fearGreed = Math.round((rangeGreed * 0.4) + (frothGreed * 0.4) + (peGreed * 0.2));
+  ctx.fearGreed = Math.min(100, Math.max(0, ctx.fearGreed));
+  // Fear/Greed label
+  if (ctx.fearGreed <= 20) ctx.fearGreedLabel = 'EXTREME FEAR';
+  else if (ctx.fearGreed <= 35) ctx.fearGreedLabel = 'FEAR';
+  else if (ctx.fearGreed <= 50) ctx.fearGreedLabel = 'MILD FEAR';
+  else if (ctx.fearGreed <= 65) ctx.fearGreedLabel = 'MILD GREED';
+  else if (ctx.fearGreed <= 80) ctx.fearGreedLabel = 'GREED';
+  else ctx.fearGreedLabel = 'EXTREME GREED';
+  // Margin of safety assessment
+  const valueScore = (d.beer * 0.6) + ((100 - ctx.rangePosition) * 0.2) + (ctx.peScore * 0.2);
+  if (valueScore >= 70) { ctx.marginOfSafety = 'STRONG'; ctx.valuationVerdict = 'UNDERVALUED'; }
+  else if (valueScore >= 55) { ctx.marginOfSafety = 'ADEQUATE'; ctx.valuationVerdict = 'FAIR VALUE'; }
+  else if (valueScore >= 40) { ctx.marginOfSafety = 'THIN'; ctx.valuationVerdict = 'SLIGHTLY OVERVALUED'; }
+  else { ctx.marginOfSafety = 'NONE'; ctx.valuationVerdict = 'OVERVALUED'; }
+  return ctx;
+}
+
+// ── COMBINED VERDICT ENGINE ──────────────────────────────
+// Maps valuation + sentiment to final entry signal
+function getCombinedSignal(valuationVerdict, fearGreedLabel) {
+  const isUnder = valuationVerdict === 'UNDERVALUED';
+  const isFair = valuationVerdict === 'FAIR VALUE';
+  const isOver = valuationVerdict === 'SLIGHTLY OVERVALUED' || valuationVerdict === 'OVERVALUED';
+  const isFear = fearGreedLabel === 'EXTREME FEAR' || fearGreedLabel === 'FEAR' || fearGreedLabel === 'MILD FEAR';
+  const isNeutral = fearGreedLabel === 'MILD GREED';
+  const isGreed = fearGreedLabel === 'GREED' || fearGreedLabel === 'EXTREME GREED';
+  if (isUnder && isFear) return { signal: 'STRONG BUY', color: '#3d9e6e', desc: 'Undervalued + Market Fear = Maximum conviction entry. Buffett says be greedy when others are fearful.' };
+  if (isUnder && isNeutral) return { signal: 'BUY', color: '#6ba83d', desc: 'Undervalued with neutral sentiment. Good entry with disciplined position sizing.' };
+  if (isUnder && isGreed) return { signal: 'BUY CAREFULLY', color: '#a8c03d', desc: 'Undervalued but sentiment is greedy. Value is there but wait for fear to return for best entry.' };
+  if (isFair && isFear) return { signal: 'BUY', color: '#6ba83d', desc: 'Fair value with market fear creating entry opportunity. Good risk/reward at current price.' };
+  if (isFair && isNeutral) return { signal: 'HOLD / WATCH', color: '#c97d30', desc: 'Fairly priced with neutral sentiment. No urgency either way. Wait for better entry.' };
+  if (isFair && isGreed) return { signal: 'CAUTION', color: '#c97d30', desc: 'Fair value but greed elevated. Risk/reward not compelling. Wait for pullback.' };
+  if (isOver && isFear) return { signal: 'WATCH', color: '#c96030', desc: 'Overvalued but fear present. Could correct to fair value. Do not buy yet.' };
+  if (isOver && isNeutral) return { signal: 'AVOID', color: '#c94a4a', desc: 'Overvalued with no fear cushion. Poor risk/reward. Wait for significant correction.' };
+  if (isOver && isGreed) return { signal: 'SELL / AVOID', color: '#c94a4a', desc: 'Overvalued + Extreme greed. This is where crashes start. Professionals are distributing.' };
+  return { signal: 'NEUTRAL', color: '#6b7585', desc: 'Insufficient data for combined signal.' };
+}
+
 const PHILOSOPHERS = {
   graham: {
     name: "Benjamin Graham",
@@ -1077,23 +1178,35 @@ const PHILOSOPHERS = {
     color: "#c8973e",
     quote: "The margin of safety is the central concept of investment.",
     question: "Is this trading below intrinsic value with an adequate margin of safety?",
-    score: function(d) {
-      if (!d) return { score: 50, verdict: "NEUTRAL", reasoning: "Insufficient data for Graham analysis." };
+    score: function(d, px) {
+      if (!d) return { score: 50, verdict: "NEUTRAL", reasoning: "Insufficient data." };
       let score = 50;
       let points = [];
-      // Beer score is our intrinsic value proxy
-      if (d.beer >= 65) { score += 20; points.push("Strong intrinsic value — beer score " + d.beer + "% indicates genuine fundamental worth"); }
-      else if (d.beer >= 50) { score += 10; points.push("Moderate intrinsic value — beer score " + d.beer + "% — some fundamental support"); }
-      else { score -= 10; points.push("Weak intrinsic value — beer score " + d.beer + "% — paying primarily for narrative"); }
-      // Froth is our margin of safety indicator
-      if (d.froth <= 35) { score += 20; points.push("Excellent margin of safety — froth only " + d.froth + "% — paying close to intrinsic value"); }
-      else if (d.froth <= 50) { score += 5; points.push("Acceptable margin of safety — froth " + d.froth + "% — modest speculative premium"); }
-      else { score -= 15; points.push("Insufficient margin of safety — froth " + d.froth + "% — significant speculative premium above intrinsic value"); }
-      // Checklist signals
+      // Business quality
+      if (d.beer >= 65) { score += 15; points.push("Strong intrinsic value — beer " + d.beer + "%"); }
+      else if (d.beer >= 50) { score += 7; points.push("Moderate intrinsic value — beer " + d.beer + "%"); }
+      else { score -= 10; points.push("Weak intrinsic value — beer " + d.beer + "% — paying for narrative"); }
+      // PRICE AWARENESS - margin of safety from live data
+      if (px && px.hasLive) {
+        if (px.marginOfSafety === 'STRONG') { score += 25; points.push("STRONG margin of safety — price significantly below intrinsic value. Graham would approve entry now."); }
+        else if (px.marginOfSafety === 'ADEQUATE') { score += 10; points.push("Adequate margin of safety — price near fair value. Acceptable entry with discipline."); }
+        else if (px.marginOfSafety === 'THIN') { score -= 15; points.push("THIN margin of safety — price above fair value. Graham demands patience for a better price."); }
+        else if (px.marginOfSafety === 'NONE') { score -= 30; points.push("NO margin of safety — significantly overvalued. Graham would not buy at this price regardless of business quality."); }
+        // Range position penalty
+        if (px.rangePosition >= 90) { score -= 10; points.push("Trading near 52-week high — Graham never chased. He waited for fear to create opportunity."); }
+        else if (px.rangePosition <= 25) { score += 10; points.push("Trading near 52-week low — exactly where Graham looked. Fear has created a potential margin of safety."); }
+        // Fear/greed context
+        if (px.fearGreedLabel === 'EXTREME FEAR' || px.fearGreedLabel === 'FEAR') { score += 10; points.push("Market fear present — Graham's Mr Market is offering a discount. This is the entry zone."); }
+        else if (px.fearGreedLabel === 'EXTREME GREED') { score -= 15; points.push("Extreme greed — Mr Market is euphoric. Graham would close his book and wait."); }
+      } else {
+        // No live data - use static froth
+        if (d.froth <= 35) { score += 15; points.push("Low froth " + d.froth + "% suggests reasonable margin of safety."); }
+        else if (d.froth >= 60) { score -= 15; points.push("High froth " + d.froth + "% — insufficient margin of safety."); }
+      }
       const balSheet = d.checks?.find(c => c.t.toLowerCase().includes('balance'));
-      if (balSheet?.s === 'pass') { score += 10; points.push("Balance sheet health confirmed — Graham demands financial strength"); }
-      else if (balSheet?.s === 'fail') { score -= 15; points.push("Balance sheet concern — Graham would require this resolved before entry"); }
-      score = Math.min(95, Math.max(10, score));
+      if (balSheet?.s === 'pass') { score += 8; points.push("Balance sheet strong — Graham demands financial fortress."); }
+      else if (balSheet?.s === 'fail') { score -= 12; points.push("Balance sheet concern — Graham would not invest with a weak balance sheet."); }
+      score = Math.min(95, Math.max(5, score));
       const verdict = score >= 70 ? "BUY" : score >= 50 ? "HOLD" : "AVOID";
       return { score, verdict, reasoning: points.join(". ") };
     }
@@ -1102,26 +1215,40 @@ const PHILOSOPHERS = {
     name: "Warren Buffett",
     role: "Quality at Fair Price — Economic Moats",
     color: "#3d7ea6",
-    quote: "It is far better to buy a wonderful company at a fair price than a fair company at a wonderful price.",
-    question: "Does this business have a durable competitive moat? Would I hold it for 10 years?",
-    score: function(d) {
+    quote: "Price is what you pay. Value is what you get.",
+    question: "Is this a wonderful business at a fair price — not a fair business at a wonderful price?",
+    score: function(d, px) {
       if (!d) return { score: 50, verdict: "NEUTRAL", reasoning: "Insufficient data." };
       let score = 50;
       let points = [];
-      // Moat proxy — high beer with medium risk indicates moat
-      if (d.beer >= 60 && (d.risk === 'MEDIUM' || d.risk === 'LOW')) { score += 25; points.push("Quality business at reasonable risk — Buffett profile. High beer score with manageable risk suggests durable competitive advantage"); }
-      else if (d.beer >= 55) { score += 12; points.push("Good quality business — beer score " + d.beer + "% suggests real fundamental value"); }
-      else { score -= 10; points.push("Beer score " + d.beer + "% — Buffett would question whether this business has genuine pricing power and competitive durability"); }
-      // Institutional backing as proxy for quality recognition
-      if (d.inst === 'BULLISH') { score += 10; points.push("Institutional conviction bullish — Buffett believes institutional ownership of quality validates the thesis"); }
-      // Revenue growth as quality signal
-      const revenue = d.checks?.find(c => c.t.toLowerCase().includes('revenue'));
-      if (revenue?.s === 'pass') { score += 10; points.push("Revenue growth confirmed — Buffett wants businesses growing their earnings power consistently"); }
-      // Insider activity
+      // Business quality — moat assessment
+      if (d.beer >= 60 && (d.risk === 'MEDIUM' || d.risk === 'LOW')) { score += 20; points.push("Wonderful business — high beer score with manageable risk. Moat likely present."); }
+      else if (d.beer >= 55) { score += 10; points.push("Good business — beer " + d.beer + "% suggests real fundamental value."); }
+      else { score -= 10; points.push("Business quality insufficient — Buffett only buys wonderful companies."); }
+      // PRICE AWARENESS - Buffett cares deeply about price paid
+      if (px && px.hasLive) {
+        // P/E assessment
+        if (px.pe !== null) {
+          if (px.pe < 15) { score += 20; points.push("P/E " + px.pe.toFixed(1) + "x — Buffett territory. Paying a genuinely fair price for a quality business."); }
+          else if (px.pe < 25) { score += 12; points.push("P/E " + px.pe.toFixed(1) + "x — acceptable for quality. Buffett has paid these multiples for exceptional businesses."); }
+          else if (px.pe < 40) { score += 0; points.push("P/E " + px.pe.toFixed(1) + "x — elevated but possibly justified if growth is exceptional."); }
+          else if (px.pe < 60) { score -= 15; points.push("P/E " + px.pe.toFixed(1) + "x — Buffett would struggle to justify this price. He passed on Microsoft for years at high multiples."); }
+          else { score -= 25; points.push("P/E " + px.pe.toFixed(1) + "x — Buffett would not pay this price. Even the best business is a bad investment at the wrong price."); }
+        }
+        // Valuation verdict
+        if (px.valuationVerdict === 'UNDERVALUED') { score += 15; points.push("Price below intrinsic value — rare opportunity. Buffett moves decisively when price and quality align."); }
+        else if (px.valuationVerdict === 'OVERVALUED') { score -= 20; points.push("Price above intrinsic value — Buffett would wait. He has sat on cash for years waiting for the right price."); }
+        // Fear/greed — Buffett's famous quote
+        if (px.fearGreedLabel === 'EXTREME FEAR' || px.fearGreedLabel === 'FEAR') { score += 12; points.push("Market fearful — be greedy when others are fearful. This is Buffett's entry signal."); }
+        else if (px.fearGreedLabel === 'EXTREME GREED') { score -= 12; points.push("Market greedy — be fearful when others are greedy. Buffett raises cash at these moments."); }
+      } else {
+        if (d.froth <= 40) { score += 10; points.push("Low froth — price appears reasonable for quality."); }
+        else if (d.froth >= 65) { score -= 15; points.push("High froth — Buffett would not pay this premium."); }
+      }
       const insider = d.checks?.find(c => c.t.toLowerCase().includes('insider'));
-      if (insider?.s === 'fail') { score -= 15; points.push("Insider selling is a significant Buffett red flag — management credibility and owner mentality are paramount"); }
-      else if (insider?.s === 'pass') { score += 5; points.push("Insider activity clean — no management credibility concerns"); }
-      score = Math.min(95, Math.max(10, score));
+      if (insider?.s === 'fail') { score -= 15; points.push("Insider selling — management does not believe in the price. Red flag for Buffett."); }
+      else if (insider?.s === 'pass') { score += 5; points.push("Clean insider activity — management confidence intact."); }
+      score = Math.min(95, Math.max(5, score));
       const verdict = score >= 70 ? "BUY" : score >= 50 ? "HOLD" : "AVOID";
       return { score, verdict, reasoning: points.join(". ") };
     }
@@ -1131,24 +1258,35 @@ const PHILOSOPHERS = {
     role: "Growth at Reasonable Price — Know Your Story",
     color: "#3d9e6e",
     quote: "Know what you own and know why you own it.",
-    question: "Can I explain this business in two minutes? Is this a ten-bagger in a growing market?",
-    score: function(d) {
+    question: "Is the growth story intact and am I paying a reasonable price for that growth?",
+    score: function(d, px) {
       if (!d) return { score: 50, verdict: "NEUTRAL", reasoning: "Insufficient data." };
       let score = 50;
       let points = [];
-      // Revenue growth is Lynch's primary metric
+      // Growth story
       const revenue = d.checks?.find(c => c.t.toLowerCase().includes('revenue'));
-      if (revenue?.s === 'pass') { score += 20; points.push("Revenue growth confirmed — Lynch built his reputation finding fast growers early. Growth is the engine of ten-baggers"); }
-      else { score -= 10; points.push("Revenue growth unclear — Lynch demands clear evidence of expanding business before conviction"); }
-      // Sector matters to Lynch
-      if (d.sector && (d.sector.includes('AI') || d.sector.includes('Robot') || d.sector.includes('Nuclear') || d.sector.includes('Storage'))) {
-        score += 15; points.push("Sector aligns with major structural theme — Lynch invested in what he understood and could see growing in everyday life");
+      if (revenue?.s === 'pass') { score += 18; points.push("Revenue growth confirmed — Lynch built his fortune finding growing businesses early."); }
+      else { score -= 10; points.push("Revenue growth unclear — Lynch demands clear evidence of expansion."); }
+      if (d.sector && (d.sector.includes('AI') || d.sector.includes('Robot') || d.sector.includes('Nuclear') || d.sector.includes('Storage') || d.sector.includes('Optical'))) {
+        score += 12; points.push("Structural growth theme — Lynch invested in what he could see growing in everyday life.");
       }
-      // Analyst consensus
-      if (['STRONG BUY','BUY'].includes(d.consensus)) { score += 10; points.push("Analyst consensus supports the growth story — Lynch respected but didn't follow Wall Street"); }
-      // Very high risk reduces Lynch score — he preferred understandable businesses
-      if (d.risk === 'VERY HIGH' || d.risk === 'EXTREME') { score -= 20; points.push("Risk level too high for Lynch — he preferred businesses he could understand and explain simply to his wife"); }
-      score = Math.min(95, Math.max(10, score));
+      // PRICE AWARENESS - Lynch used PEG ratio (P/E vs growth rate)
+      if (px && px.hasLive && px.pe !== null) {
+        // PEG proxy: P/E vs revenue growth implied by DB
+        // We estimate growth rate from revenue checklist and beer score
+        const impliedGrowth = d.beer >= 60 ? 30 : d.beer >= 50 ? 20 : d.beer >= 40 ? 10 : 5;
+        const pegProxy = px.pe / impliedGrowth;
+        if (pegProxy < 0.75) { score += 22; points.push("PEG ratio ~" + pegProxy.toFixed(2) + " — exceptional. Paying less than growth rate. Lynch called this the sweet spot."); }
+        else if (pegProxy < 1.0) { score += 15; points.push("PEG ratio ~" + pegProxy.toFixed(2) + " — attractive. Growth at a reasonable price — exactly Lynch's philosophy."); }
+        else if (pegProxy < 1.5) { score += 5; points.push("PEG ratio ~" + pegProxy.toFixed(2) + " — acceptable. Paying a modest premium for growth."); }
+        else if (pegProxy < 2.5) { score -= 10; points.push("PEG ratio ~" + pegProxy.toFixed(2) + " — stretched. Lynch would question whether you are paying too much for the growth story."); }
+        else { score -= 22; points.push("PEG ratio ~" + pegProxy.toFixed(2) + " — Lynch would avoid. You are paying far more than the growth justifies. The story is priced in and then some."); }
+        // 52-week range — Lynch liked buying in fear
+        if (px.rangePosition >= 85) { score -= 10; points.push("Near 52-week high — Lynch never chased. He waited for the market to get bored or scared."); }
+        else if (px.rangePosition <= 30) { score += 8; points.push("Near 52-week low — Lynch would investigate whether fear has created an opportunity."); }
+      }
+      if (d.risk === 'VERY HIGH' || d.risk === 'EXTREME') { score -= 18; points.push("Risk too high — Lynch preferred businesses he could explain simply."); }
+      score = Math.min(95, Math.max(5, score));
       const verdict = score >= 70 ? "BUY" : score >= 50 ? "HOLD" : "AVOID";
       return { score, verdict, reasoning: points.join(". ") };
     }
@@ -1157,24 +1295,37 @@ const PHILOSOPHERS = {
     name: "Philip Fisher",
     role: "Qualitative Analysis — Management & Scuttlebutt",
     color: "#c97d30",
-    quote: "The stock market is filled with individuals who know the price of everything but the value of nothing.",
-    question: "Is management excellent and trustworthy? What do insiders say with their own money?",
-    score: function(d) {
+    quote: "The stock market is filled with people who know the price of everything but the value of nothing.",
+    question: "Is management credible and are insiders putting their own money where their mouth is?",
+    score: function(d, px) {
       if (!d) return { score: 50, verdict: "NEUTRAL", reasoning: "Insufficient data." };
       let score = 50;
       let points = [];
-      // Insider activity is Fisher's primary signal — scuttlebutt
+      // Insider activity — Fishers primary signal
       const insider = d.checks?.find(c => c.t.toLowerCase().includes('insider'));
-      if (insider?.s === 'fail') { score -= 25; points.push("CRITICAL: Insider selling is Fisher's most serious warning. Management selling their own stock at current prices means they see better value elsewhere. This is primary scuttlebutt data"); }
-      else if (insider?.s === 'warn') { score -= 5; points.push("Insider activity warrants monitoring — Fisher would investigate further before conviction"); }
-      else if (insider?.s === 'pass') { score += 20; points.push("Clean insider activity — no management selling. Fisher interprets this as management confidence in the business outlook"); }
-      // Institutional positioning as scuttlebutt proxy
-      if (d.inst === 'BULLISH') { score += 15; points.push("Institutional consensus bullish — Fisher valued the wisdom of informed, long-term investors doing deep research"); }
-      else if (d.inst === 'BEARISH') { score -= 10; points.push("Institutional sentiment bearish — Fisher would investigate why sophisticated investors are cautious"); }
-      // Balance sheet as management quality signal
+      if (insider?.s === 'fail') { score -= 28; points.push("CRITICAL: Insiders selling at current prices. Management does not believe the stock is cheap here. This is Fishers most serious warning."); }
+      else if (insider?.s === 'warn') { score -= 8; points.push("Insider activity warrants monitoring — some selling noted at current price levels."); }
+      else if (insider?.s === 'pass') { score += 22; points.push("Clean insider activity — no selling at current prices. Management comfortable with current valuation."); }
+      // PRICE AWARENESS via insider activity at current price
+      if (px && px.hasLive) {
+        // If insiders are NOT selling near 52-week highs, that is very bullish
+        if (px.rangePosition >= 80 && insider?.s === 'pass') {
+          score += 10; points.push("Insiders NOT selling near 52-week high — exceptional signal. Management believes more upside remains even at elevated prices.");
+        }
+        // If insiders ARE selling near highs, very bearish
+        if (px.rangePosition >= 70 && insider?.s === 'fail') {
+          score -= 10; points.push("Insiders selling near 52-week high — management distributing at peak. Follow what they do not what they say.");
+        }
+        // Overvaluation warning
+        if (px.valuationVerdict === 'OVERVALUED') {
+          score -= 10; points.push("Current price above intrinsic value — Fisher would require insider buying to justify entry at premium prices.");
+        }
+      }
+      if (d.inst === 'BULLISH') { score += 12; points.push("Institutional consensus bullish — sophisticated long-term investors agree with the thesis."); }
+      else if (d.inst === 'BEARISH') { score -= 10; points.push("Institutional sentiment bearish — smart money cautious at current price."); }
       const balance = d.checks?.find(c => c.t.toLowerCase().includes('balance'));
-      if (balance?.s === 'pass') { score += 10; points.push("Balance sheet healthy — Fisher believed great management always maintained financial strength"); }
-      score = Math.min(95, Math.max(10, score));
+      if (balance?.s === 'pass') { score += 8; points.push("Balance sheet strong — great management always maintains financial strength."); }
+      score = Math.min(95, Math.max(5, score));
       const verdict = score >= 70 ? "BUY" : score >= 50 ? "HOLD" : "AVOID";
       return { score, verdict, reasoning: points.join(". ") };
     }
@@ -1184,99 +1335,256 @@ const PHILOSOPHERS = {
     role: "Systematic & Rules-Based — Renaissance Technologies",
     color: "#7a4aaa",
     quote: "We override our emotions with our models. That is the whole point.",
-    question: "Does this trade have a defined entry, exit and position size? Is emotion fully removed?",
-    score: function(d) {
+    question: "Does this trade have a defined entry, exit and size — and is the risk/reward mathematically sound?",
+    score: function(d, px) {
       if (!d) return { score: 50, verdict: "NEUTRAL", reasoning: "Insufficient data." };
       let score = 50;
       let points = [];
-      // Simons cares about systematic rules — earnings risk is the biggest enemy of systematic trading
+      // Earnings risk — Simons never held through binary events
       const earnings = d.checks?.find(c => c.t.toLowerCase().includes('earn'));
-      if (earnings?.s === 'fail') { score -= 30; points.push("CRITICAL: Active earnings risk violates Simons' systematic approach. His models never held positions through binary events with unpredictable outcomes. Stand down until after results"); }
-      else if (earnings?.s === 'pass') { score += 15; points.push("No imminent earnings risk — Simons' models can execute without binary event uncertainty"); }
-      // Short interest — Simons would track statistical anomalies
+      if (earnings?.s === 'fail') { score -= 30; points.push("CRITICAL: Active earnings risk. Simons models never held through unpredictable binary events. Stand down until after results."); }
+      else if (earnings?.s === 'pass') { score += 12; points.push("No imminent earnings risk — systematic entry possible without binary event exposure."); }
+      // PRICE AWARENESS - Simons cares about statistical edge at current price
+      if (px && px.hasLive) {
+        // Range position — statistical mean reversion
+        if (px.rangePosition >= 90) { score -= 18; points.push("At 90th percentile of 52-week range — statistical mean reversion risk is high. Simons models would flag this as elevated entry risk."); }
+        else if (px.rangePosition >= 75) { score -= 8; points.push("Upper range of 52-week band — momentum positive but mean reversion risk increasing."); }
+        else if (px.rangePosition <= 25) { score += 15; points.push("Lower range of 52-week band — statistical models favour entry. Mean reversion potential to the upside."); }
+        else if (px.rangePosition <= 40) { score += 8; points.push("Below midpoint of 52-week range — entry has statistical edge on mean reversion basis."); }
+        // Fear/greed — Simons models are contrarian on extremes
+        if (px.fearGreed >= 80) { score -= 15; points.push("Extreme greed reading " + px.fearGreed + "/100 — Simons models reduce exposure when sentiment reaches extremes."); }
+        else if (px.fearGreed <= 25) { score += 15; points.push("Extreme fear reading " + px.fearGreed + "/100 — Simons models increase exposure when sentiment reaches negative extremes."); }
+        // Stop loss defined
+        if (d.stop && d.stop !== '-') { score += 12; points.push("Stop loss defined — Simons insisted every position have a mathematical exit before entry."); }
+      } else {
+        if (d.stop && d.stop !== '-') { score += 15; points.push("Stop loss defined — systematic exit defined."); }
+      }
       const shortInt = d.checks?.find(c => c.t.toLowerCase().includes('short'));
-      if (shortInt?.s === 'warn') { score -= 5; points.push("Elevated short interest noted — Simons would model the short squeeze potential and the downside risk symmetrically"); }
-      else if (shortInt?.s === 'pass') { score += 10; points.push("Short interest clean — no unusual positioning creating asymmetric risk in either direction"); }
-      // Defined stop loss in DB
-      if (d.stop && d.stop !== '—') { score += 15; points.push("Stop loss level defined — Simons insisted every position have a mathematically defined exit before entry"); }
-      // Risk level
-      if (d.risk === 'LOW' || d.risk === 'MEDIUM') { score += 10; points.push("Risk level acceptable for systematic entry — Simons sized positions proportionally to risk confidence"); }
-      else if (d.risk === 'VERY HIGH' || d.risk === 'EXTREME') { score -= 15; points.push("Excessive risk level — Simons would require extraordinary statistical evidence to enter a position with this risk profile"); }
-      score = Math.min(95, Math.max(10, score));
+      if (shortInt?.s === 'warn') { score -= 5; points.push("Elevated short interest — models would track short squeeze potential and downside risk."); }
+      if (d.risk === 'VERY HIGH' || d.risk === 'EXTREME') { score -= 15; points.push("Excessive risk level — Simons required extraordinary statistical evidence for extreme risk positions."); }
+      score = Math.min(95, Math.max(5, score));
       const verdict = score >= 70 ? "EXECUTE" : score >= 50 ? "WAIT" : "STAND DOWN";
       return { score, verdict, reasoning: points.join(". ") };
     }
   },
   dalio: {
     name: "Ray Dalio",
-    role: "Macro Thinking & Portfolio Construction",
+    role: "Macro Thinking & All-Weather Portfolio",
     color: "#2d7d46",
     quote: "Diversifying well is the most important thing you need to do in order to invest well.",
-    question: "How does this correlate with existing positions? Does it fit the macro environment?",
-    score: function(d) {
+    question: "Does this fit the macro environment and is the portfolio balanced for all weather conditions?",
+    score: function(d, px) {
       if (!d) return { score: 50, verdict: "NEUTRAL", reasoning: "Insufficient data." };
       let score = 50;
       let points = [];
-      // Correlation warning is Dalio's core concern
+      // Correlation
       if (d.corr && d.corr.toLowerCase().includes('correlated')) {
-        score -= 15; points.push("Correlation risk identified — Dalio proved that adding correlated positions reduces diversification without reducing risk. This is not a new position; it is an addition to an existing bet");
-      } else {
-        score += 10; points.push("Correlation profile acceptable — Dalio would approve adding genuine diversification to the portfolio");
-      }
+        score -= 15; points.push("Correlation risk — adding this position concentrates risk rather than diversifying it.");
+      } else { score += 8; points.push("Acceptable correlation — genuine diversification benefit to portfolio."); }
       // Macro environment
       const macro = d.checks?.find(c => c.t.toLowerCase().includes('macro'));
-      if (macro?.s === 'pass') { score += 20; points.push("Macro environment supportive — Dalio's all-weather thinking requires macro tailwinds. AI infrastructure and nuclear energy themes are structural, not cyclical"); }
-      else if (macro?.s === 'warn') { score -= 10; points.push("Macro headwinds present — Dalio would reduce position size when macro environment is uncertain"); }
-      // Position size — Dalio always cared about sizing
-      if (d.posRec <= 5) { score += 10; points.push("Conservative position sizing — Dalio's radical diversification principle requires no single position to dominate the portfolio"); }
-      else if (d.posRec >= 12) { score -= 10; points.push("Position size elevated — Dalio would recommend reducing concentration to maintain genuine diversification across the portfolio"); }
-      score = Math.min(95, Math.max(10, score));
+      if (macro?.s === 'pass') { score += 18; points.push("Macro environment supportive — structural AI, nuclear and energy themes intact."); }
+      else if (macro?.s === 'warn') { score -= 10; points.push("Macro headwinds present — Dalio would reduce position size."); }
+      // PRICE AWARENESS - Dalio thinks about entry price in context of portfolio stress
+      if (px && px.hasLive) {
+        // Fear/greed as macro sentiment indicator
+        if (px.fearGreed >= 75) {
+          score -= 15; points.push("Greed elevated at " + px.fearGreed + "/100 — Dalio would reduce risk exposure. All-weather portfolios need cushion not euphoria at entry.");
+        } else if (px.fearGreed <= 30) {
+          score += 15; points.push("Fear reading " + px.fearGreed + "/100 — Dalio increases allocation when fear creates margin of safety. This is the all-weather entry zone.");
+        }
+        // Near 52-week high means limited downside cushion
+        if (px.rangePosition >= 85) {
+          score -= 10; points.push("Near 52-week high — limited cushion if macro conditions deteriorate. Dalio demands downside protection at entry.");
+        }
+        // Valuation from portfolio construction perspective
+        if (px.valuationVerdict === 'OVERVALUED') {
+          score -= 12; points.push("Overvalued entry reduces portfolio resilience — any macro shock hits harder when you have paid too much.");
+        } else if (px.valuationVerdict === 'UNDERVALUED') {
+          score += 12; points.push("Undervalued entry creates portfolio cushion — macro shocks are absorbed by the margin of safety.");
+        }
+      }
+      if (d.posRec <= 5) { score += 8; points.push("Conservative position sizing — Dalio radical diversification principle respected."); }
+      else if (d.posRec >= 12) { score -= 10; points.push("Position size elevated — Dalio would cap this to maintain genuine diversification."); }
+      score = Math.min(95, Math.max(5, score));
       const verdict = score >= 70 ? "ALLOCATE" : score >= 50 ? "SIZE SMALL" : "DIVERSIFY FIRST";
       return { score, verdict, reasoning: points.join(". ") };
     }
   },
   kahneman: {
     name: "Daniel Kahneman",
-    role: "Behavioural Economics — Psychology of Decision Making",
+    role: "Behavioural Economics — Fear, Greed & Decision Making",
     color: "#c94a4a",
     quote: "Nothing in life is as important as you think it is while you are thinking about it.",
-    question: "Am I thinking with System 2? Have I honestly confronted the full bear case?",
-    score: function(d) {
+    question: "Is fear or greed driving this decision — and have I genuinely confronted what could go wrong?",
+    score: function(d, px) {
       if (!d) return { score: 50, verdict: "NEUTRAL", reasoning: "Insufficient data." };
       let score = 50;
       let points = [];
-      // Bear case exists — confronting it is System 2 thinking
-      if (d.bear && d.bear.length >= 4) { score += 15; points.push("Full bear case documented — Kahneman demands we honestly confront reasons we might be wrong before acting. Five bear arguments reviewed"); }
-      // Froth as narrative fallacy indicator
-      if (d.froth >= 65) { score -= 20; points.push("High froth score " + d.froth + "% — Kahneman's narrative fallacy warning. A compelling story is not evidence of value. You may be paying for a narrative your System 1 finds exciting rather than a business your System 2 can value"); }
-      else if (d.froth <= 40) { score += 15; points.push("Low froth score " + d.froth + "% — limited narrative premium. This trade is grounded in fundamentals rather than story, which Kahneman approves"); }
-      // Earnings risk — binary events trigger System 1 emotional responses
+      // Bear case confronted
+      if (d.bear && d.bear.length >= 4) { score += 12; points.push("Full bear case documented — Kahneman demands we confront reasons we might be wrong before acting."); }
+      // PRICE AWARENESS - Kahneman is all about detecting emotional distortion
+      if (px && px.hasLive) {
+        // Fear/Greed is Kahnemans primary signal
+        if (px.fearGreed >= 80) {
+          score -= 28; points.push("EXTREME GREED at " + px.fearGreed + "/100 — System 1 danger zone. The excitement of recent gains is almost certainly distorting your judgment. Apply the 24-hour rule. Ask yourself: would I buy this if it had not gone up recently?");
+        } else if (px.fearGreed >= 65) {
+          score -= 15; points.push("Greed reading " + px.fearGreed + "/100 — moderate System 1 bias present. The narrative is exciting. Slow down and interrogate whether the price still reflects value.");
+        } else if (px.fearGreed <= 20) {
+          score += 20; points.push("EXTREME FEAR at " + px.fearGreed + "/100 — System 2 opportunity. Everyone is scared. Your instinct says avoid. That instinct is exactly what Kahneman says to override with deliberate analysis.");
+        } else if (px.fearGreed <= 35) {
+          score += 12; points.push("Fear reading " + px.fearGreed + "/100 — mild pessimism creating clarity. System 2 thinking is easier when the narrative is not exciting.");
+        }
+        // Near highs triggers FOMO — the most dangerous System 1 emotion
+        if (px.rangePosition >= 90) {
+          score -= 20; points.push("Near 52-week high — maximum FOMO risk. The anchoring bias makes recent high prices feel normal. They are not. Ask: would you buy this if you had never seen the chart?");
+        } else if (px.rangePosition <= 20) {
+          score += 15; points.push("Near 52-week low — loss aversion making you hesitate. This is exactly when System 1 says avoid. System 2 analysis is required.");
+        }
+        // Overvaluation at high greed = classic bubble psychology
+        if (px.valuationVerdict === 'OVERVALUED' && px.fearGreed >= 65) {
+          score -= 15; points.push("Overvalued AND greedy — classic narrative fallacy trap. The story is compelling, the price is wrong, and System 1 cannot tell the difference.");
+        }
+      } else {
+        // No live data
+        if (d.froth >= 65) { score -= 20; points.push("High froth " + d.froth + "% — narrative fallacy risk. You may be paying for a story rather than a business."); }
+        else if (d.froth <= 40) { score += 15; points.push("Low froth — decision grounded in fundamentals not narrative."); }
+      }
+      // Earnings risk — binary events trigger emotional responses
       const earnings = d.checks?.find(c => c.t.toLowerCase().includes('earn'));
-      if (earnings?.s === 'fail') { score -= 20; points.push("Earnings risk present — Kahneman warns that anticipated emotional events (earnings releases) impair System 2 reasoning. The 48-hour rule exists to enforce System 2 discipline"); }
-      // Pre-trade checklist completion
-      if (d.checks && d.checks.length >= 8) { score += 10; points.push("Full pre-trade checklist completed — Kahneman's research shows systematic checklists dramatically reduce cognitive biases in high-stakes decisions"); }
-      score = Math.min(95, Math.max(10, score));
+      if (earnings?.s === 'fail') { score -= 18; points.push("Earnings approaching — anticipated events impair System 2 reasoning. Apply the 48-hour rule."); }
+      score = Math.min(95, Math.max(5, score));
       const verdict = score >= 70 ? "SYSTEM 2 CLEAR" : score >= 50 ? "PAUSE & REFLECT" : "SYSTEM 1 WARNING";
       return { score, verdict, reasoning: points.join(". ") };
     }
   }
 };
-
 function runPhilosophy() {
   const ticker = (document.getElementById('philTickerInput')?.value || '').trim().toUpperCase();
   if (!ticker) return;
   const d = DB[ticker];
   if (!d) {
-    document.getElementById('philResult').innerHTML = `<div class="not-found"><strong style="color:var(--amber)">${ticker} not in database</strong><br><br>Select from the watchlist tags above. We can add any stock to the database on request.</div>`;
+    document.getElementById('philResult').innerHTML = `<div class="not-found"><strong style="color:var(--amber)">${ticker} not in database</strong><br><br>Select from the watchlist tags above.</div>`;
     return;
   }
   renderPhilosophy(ticker, d);
 }
 
 function renderPhilosophy(ticker, d) {
+  // Get live price context
+  const px = getPriceContext(ticker, d);
+  const live = getLivePrice(ticker);
+
   const scores = {};
   let totalScore = 0;
   Object.keys(PHILOSOPHERS).forEach(key => {
+    scores[key] = PHILOSOPHERS[key].score(d, px);
+    totalScore += scores[key].score;
+  });
+  const avgScore = Math.round(totalScore / Object.keys(PHILOSOPHERS).length);
+  const goCount = Object.values(scores).filter(s => s.score >= 70).length;
+  const cautionCount = Object.values(scores).filter(s => s.score >= 50 && s.score < 70).length;
+  const avoidCount = Object.values(scores).filter(s => s.score < 50).length;
+
+  // Combined philosophical verdict
+  let cv, cbg, cb, cc;
+  if (goCount >= 5) { cv = 'STRONG PHILOSOPHICAL GO'; cbg = 'var(--greenD)'; cb = 'var(--green)'; cc = 'var(--green)'; }
+  else if (goCount >= 4 || (goCount >= 3 && avoidCount === 0)) { cv = 'PHILOSOPHICAL GO'; cbg = 'var(--greenD)'; cb = 'var(--green)'; cc = 'var(--green)'; }
+  else if (avoidCount >= 4) { cv = 'PHILOSOPHICAL NO-GO'; cbg = 'var(--redD)'; cb = 'var(--red)'; cc = 'var(--red)'; }
+  else { cv = 'PHILOSOPHICAL CAUTION'; cbg = 'var(--amberD)'; cb = 'var(--amber)'; cc = 'var(--amber)'; }
+
+  // Combined signal from valuation + sentiment
+  const combinedSignal = px.hasLive ? getCombinedSignal(px.valuationVerdict, px.fearGreedLabel) : null;
+
+  // Scientific mentor verdict
+  const mv = generateMentorVerdict(ticker, d, scores, avgScore, cv, goCount, avoidCount, px);
+  const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  // Fear/Greed gauge HTML
+  const fgColor = px.fearGreed <= 30 ? '#3d9e6e' : px.fearGreed <= 50 ? '#6ba83d' : px.fearGreed <= 65 ? '#c97d30' : px.fearGreed <= 80 ? '#c96030' : '#c94a4a';
+  const fearGreedHTML = px.hasLive ? `
+    <div style="background:var(--card);border:1px solid var(--border);padding:14px;margin-bottom:10px;border-radius:3px">
+      <div style="font-size:9px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;font-weight:700">📊 Price Intelligence — ${ticker} at ${live ? live.price : 'N/A'}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px">
+        <div style="text-align:center;background:var(--card2);padding:10px 6px;border-radius:3px">
+          <div style="font-size:18px;font-weight:700;color:${px.marginOfSafety === 'STRONG' ? 'var(--green)' : px.marginOfSafety === 'ADEQUATE' ? 'var(--amber)' : 'var(--red)'}">${px.marginOfSafety}</div>
+          <div style="font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:3px">Margin of Safety</div>
+        </div>
+        <div style="text-align:center;background:var(--card2);padding:10px 6px;border-radius:3px">
+          <div style="font-size:18px;font-weight:700;color:${px.valuationVerdict === 'UNDERVALUED' ? 'var(--green)' : px.valuationVerdict === 'FAIR VALUE' ? 'var(--amber)' : 'var(--red)'}">${px.valuationVerdict}</div>
+          <div style="font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:3px">Valuation</div>
+        </div>
+        <div style="text-align:center;background:var(--card2);padding:10px 6px;border-radius:3px">
+          <div style="font-size:18px;font-weight:700;color:${fgColor}">${px.fearGreedLabel}</div>
+          <div style="font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:3px">Fear vs Greed</div>
+        </div>
+        <div style="text-align:center;background:var(--card2);padding:10px 6px;border-radius:3px">
+          <div style="font-size:18px;font-weight:700;color:var(--white)">${px.rangePosition}%</div>
+          <div style="font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:3px">52W Range Position</div>
+        </div>
+      </div>
+      <div style="background:var(--border);height:8px;border-radius:4px;overflow:hidden;margin-bottom:6px">
+        <div style="height:100%;width:${px.fearGreed}%;background:linear-gradient(to right,#3d9e6e,#c97d30,#c94a4a);border-radius:4px"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:8px;color:var(--muted);margin-bottom:10px">
+        <span>EXTREME FEAR</span><span>FEAR</span><span>NEUTRAL</span><span>GREED</span><span>EXTREME GREED</span>
+      </div>
+      ${combinedSignal ? `
+      <div style="background:${combinedSignal.color}22;border:1px solid ${combinedSignal.color};border-left:4px solid ${combinedSignal.color};padding:12px;border-radius:0 3px 3px 0">
+        <div style="font-size:9px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">Combined Price + Sentiment Signal</div>
+        <div style="font-size:20px;font-weight:700;color:${combinedSignal.color};letter-spacing:1px;margin-bottom:6px">${combinedSignal.signal}</div>
+        <div style="font-size:11px;color:#a0a8b0;line-height:1.5">${combinedSignal.desc}</div>
+      </div>` : ''}
+    </div>` : `<div style="background:var(--card);border:1px solid var(--border);padding:12px;margin-bottom:10px;border-radius:3px;font-size:11px;color:var(--muted2)">Live price data loading — price-aware scores will appear once market data loads.</div>`;
+
+  // Radar
+  const radarHTML = Object.keys(PHILOSOPHERS).map(k => {
+    const p = PHILOSOPHERS[k];
+    const s = scores[k];
+    const col = s.score >= 70 ? 'var(--green)' : s.score >= 50 ? 'var(--amber)' : 'var(--red)';
+    return `<div class="radar-item"><div class="radar-score" style="color:${col}">${s.score}</div><div class="radar-name" style="color:${p.color}">${p.name.split(' ')[1] || p.name.split(' ')[0]}</div></div>`;
+  }).join('');
+
+  // Philosopher cards
+  const philCardsHTML = Object.keys(PHILOSOPHERS).map(k => {
+    const p = PHILOSOPHERS[k];
+    const s = scores[k];
+    const sc = s.score >= 70 ? '#3d9e6e' : s.score >= 50 ? '#c97d30' : '#c94a4a';
+    return `<div class="phil-card" style="border-top-color:${p.color}">
+      <div class="phil-name" style="color:${p.color}">${p.name}</div>
+      <div style="font-size:9px;color:var(--muted2);margin-bottom:6px;letter-spacing:1px">${p.role}</div>
+      <div class="phil-quote">${p.quote}</div>
+      <div class="phil-question">Q: ${p.question}</div>
+      <div class="phil-answer">${s.reasoning}</div>
+      <div class="phil-score-bar"><div class="phil-score-fill" style="width:${s.score}%;background:${sc}"></div></div>
+      <div class="phil-score-label"><span style="color:${sc};font-weight:700">${s.verdict}</span><span style="color:var(--muted2)">${s.score}/100</span></div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('philResult').innerHTML = `<div style="animation:fadeUp .3s ease">
+    ${fearGreedHTML}
+    <div style="background:var(--card);border:1px solid var(--border);padding:14px;margin-bottom:10px;border-radius:3px">
+      <div style="font-size:9px;color:var(--purple);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;font-weight:700">🧠 Seven Philosopher Scores — ${ticker}</div>
+      <div class="radar-grid">${radarHTML}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--muted2)">Support: <strong style="color:var(--green)">${goCount}</strong> &nbsp;|&nbsp; Caution: <strong style="color:var(--amber)">${cautionCount}</strong> &nbsp;|&nbsp; Avoid: <strong style="color:var(--red)">${avoidCount}</strong></div>
+        <div style="text-align:right"><div style="font-size:40px;font-weight:700;color:var(--white);line-height:1">${avgScore}</div><div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Combined Score</div></div>
+      </div>
+    </div>
+    <div style="background:${cbg};border-left:4px solid ${cb};padding:16px;margin-bottom:10px;border-radius:0 3px 3px 0">
+      <div style="font-size:9px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">Philosophical Combined Verdict</div>
+      <div style="font-size:24px;font-weight:700;color:${cc};letter-spacing:2px">${cv}</div>
+      <div style="font-size:11px;color:#a0a8b0;margin-top:6px;line-height:1.5">${goCount} of 7 philosophers support this trade at current price. ${avoidCount} recommend avoidance. ${cautionCount} advise caution.</div>
+    </div>
+    <div style="font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;font-weight:600">Individual Philosopher Analysis — Price Aware</div>
+    <div class="phil-score-grid">${philCardsHTML}</div>
+    <div class="scientific-verdict">
+      <div class="sv-title">🔬 Scientific Mentor Verdict — ${ticker} — ${today}</div>
+      <div class="sv-text">${mv}</div>
+      <div style="font-size:9px;color:var(--purple);letter-spacing:1px;text-transform:uppercase;margin-top:12px;font-weight:700">— Claude · MaxSmith Capital Trading Mentor · Price-Aware Philosophical Analysis</div>
+    </div>
+  </div>`;
+}
     scores[key] = PHILOSOPHERS[key].score(d);
     totalScore += scores[key].score;
   });
@@ -1382,7 +1690,7 @@ function renderPhilosophy(ticker, d) {
     </div>`;
 }
 
-function generateMentorVerdict(ticker, d, scores, avgScore, combinedVerdict, goCount, avoidCount) {
+function generateMentorVerdict(ticker, d, scores, avgScore, combinedVerdict, goCount, avoidCount, px) {
   const isGo = goCount >= 4;
   const isNoGo = avoidCount >= 4;
 
