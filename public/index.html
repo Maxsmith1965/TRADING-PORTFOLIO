@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Trading Portfolio v5">
+<meta name="apple-mobile-web-app-title" content="Trading Portfolio">
 <meta name="theme-color" content="#060708">
 <title>Trading Portfolio</title>
 <style>
@@ -1654,7 +1654,14 @@ function renderPhilosophy(ticker, d) {
     </div>
   </div>`;
 }
-    scores[key] = PHILOSOPHERS[key].score(d);
+
+function renderPhilosophy(ticker, d) {
+  const px = getPriceContext(ticker, d);
+  const live = getLivePrice(ticker);
+  const scores = {};
+  let totalScore = 0;
+  Object.keys(PHILOSOPHERS).forEach(key => {
+    scores[key] = PHILOSOPHERS[key].score(d, px);
     totalScore += scores[key].score;
   });
   const avgScore = Math.round(totalScore / Object.keys(PHILOSOPHERS).length);
