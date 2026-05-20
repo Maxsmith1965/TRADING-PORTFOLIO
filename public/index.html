@@ -1,881 +1,253 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Trading Portfolio v4">
-<meta name="theme-color" content="#060708">
-<title>Trading Portfolio</title>
-<style>
-:root{--black:#060708;--card:#111416;--card2:#161a1e;--border:#1e2428;--border2:#252c32;--gold:#c8973e;--goldL:#e8b86a;--goldD:#7a5c24;--green:#3d9e6e;--greenD:#0f2a1c;--red:#c94a4a;--redD:#2a0f0f;--amber:#c97d30;--amberD:#2a1a08;--blue:#3d7ea6;--blueD:#0f2030;--purple:#7a4aaa;--purpleD:#1a0f2a;--white:#edeae4;--muted:#4a5260;--muted2:#6b7585}
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{background:var(--black);color:var(--white);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;font-weight:300;min-height:100vh;padding-bottom:env(safe-area-inset-bottom)}
-.nav{background:#080a0b;border-bottom:1px solid var(--border);padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top));position:sticky;top:0;z-index:100;display:flex;justify-content:space-between;align-items:center}
-.nav-title{font-size:17px;font-weight:600;color:var(--gold);letter-spacing:.5px}
-.nav-sub{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:2px}
-.nav-tabs{display:flex;gap:4px}
-.nav-tab{padding:6px 10px;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;border:none;cursor:pointer;border-radius:4px;transition:all .15s}
-.nav-tab.gold{background:var(--goldD);color:var(--gold)}.nav-tab.gold.active{background:var(--gold);color:var(--black)}
-.nav-tab.blue{background:var(--blueD);color:var(--blue)}.nav-tab.blue.active{background:var(--blue);color:var(--white)}
-.nav-tab.purple{background:var(--purpleD);color:var(--purple)}.nav-tab.purple.active{background:var(--purple);color:var(--white)}
-.vix-bar{background:var(--card);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;justify-content:space-between;align-items:center}
-.vix-label{font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase}
-.vix-value{font-size:18px;font-weight:700;color:var(--white)}.vix-level{font-size:10px;color:var(--muted2)}.update-time{font-size:9px;color:var(--muted);letter-spacing:1px}
-.main{padding:12px 16px;max-width:900px;margin:0 auto}
-.pots{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
-.pot{background:var(--card);border:1px solid var(--border);border-top:3px solid;padding:10px 12px}
-.pot-label{font-size:8px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}
-.pot-val{font-size:15px;font-weight:700;margin-bottom:3px}.pot-desc{font-size:9px;color:var(--muted2);line-height:1.4}
-.dist{margin-bottom:14px}.dist-label{font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
-.dist-bar{height:28px;display:flex;border-radius:3px;overflow:hidden}
-.dist-seg{display:flex;align-items:center;justify-content:center}
-.dist-seg span{font-size:9px;font-weight:700;letter-spacing:1px;white-space:nowrap;padding:0 6px}
-.dist-legend{display:flex;gap:12px;margin-top:6px;flex-wrap:wrap}
-.dist-leg-item{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--muted2)}
-.dist-leg-dot{width:8px;height:8px;border-radius:1px;flex-shrink:0}
-.section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;margin-top:16px}
-.section-title{font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase}
-.section-badge{font-size:9px;padding:3px 8px;border-radius:3px;letter-spacing:1px;font-weight:600}
-.stock-grid{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
-.stock-card{background:var(--card);border:1px solid var(--border);border-left:3px solid;padding:10px 12px;cursor:pointer;transition:background .15s;position:relative}
-.stock-card:active{background:var(--card2)}
-.stock-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
-.stock-ticker{font-size:16px;font-weight:700;letter-spacing:1px}
-.stock-name{font-size:10px;color:var(--muted2);margin-top:1px}
-.stock-right{text-align:right}
-.stock-price{font-size:15px;font-weight:700;color:var(--white)}
-.stock-change{font-size:11px;font-weight:600;margin-top:1px}
-.stock-change.up{color:var(--green)}.stock-change.down{color:var(--red)}.stock-change.flat{color:var(--muted2)}
-.stock-bar{height:4px;background:var(--border);border-radius:2px;margin-bottom:6px;overflow:hidden}
-.stock-bar-fill{height:100%;background:var(--gold);border-radius:2px}
-.stock-bottom{display:flex;justify-content:space-between;align-items:center}
-.stock-meta{display:flex;gap:8px;align-items:center}
-.risk-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.stock-risk{font-size:9px;letter-spacing:1px;font-weight:600}
-.stock-note{font-size:10px;color:var(--muted2);line-height:1.3;flex:1;margin-left:8px;text-align:right}
-.stock-alloc{font-size:11px;font-weight:700}
-.stock-flags{display:flex;justify-content:flex-end;margin-bottom:2px}
-.flag{font-size:8px;padding:2px 5px;border-radius:2px;font-weight:700;letter-spacing:.5px;display:inline-block}
-.flag.earnings{background:var(--amberD);color:var(--amber);border:1px solid var(--amber)}
-.ipo-card{background:var(--card);border:1px solid var(--amberD);border-left:3px solid var(--amber);padding:10px 12px;margin-bottom:6px}
-.ipo-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
-.ipo-ticker{font-size:14px;font-weight:700;color:var(--amber)}
-.ipo-status{font-size:9px;padding:2px 7px;background:var(--amberD);color:var(--amber);border-radius:2px}
-.ipo-note{font-size:10px;color:var(--muted2);line-height:1.4}
-.rules{background:#080c10;border:1px solid var(--border);border-left:3px solid var(--red);padding:14px;margin-top:14px;margin-bottom:20px}
-.rules-title{font-size:10px;color:var(--red);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;font-weight:700}
-.rules-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
-.rule-item{font-size:10px;color:#9aa0a8;padding-left:12px;position:relative;line-height:1.5}
-.rule-item::before{content:'x';position:absolute;left:0;color:var(--red);font-size:8px;top:2px}
-.tester{padding:12px 16px;max-width:900px;margin:0 auto}
-.back-btn{background:var(--border2);color:var(--muted2);border:none;padding:7px 12px;font-size:11px;letter-spacing:1px;cursor:pointer;border-radius:3px}
-.tester-title{font-size:16px;font-weight:700;color:var(--gold);letter-spacing:1px}
-.input-row{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
-.ticker-input{background:var(--card);border:1px solid var(--border2);color:var(--white);font-size:22px;font-weight:700;padding:10px 14px;outline:none;text-transform:uppercase;width:130px;letter-spacing:2px;border-radius:3px}
-.ticker-input:focus{border-color:var(--gold)}
-.pos-input{background:var(--card);border:1px solid var(--border2);color:var(--white);font-size:13px;padding:10px 12px;outline:none;flex:1;min-width:120px;border-radius:3px}
-.analyse-btn{background:var(--gold);color:var(--black);border:none;font-size:14px;font-weight:700;letter-spacing:1px;padding:10px 20px;cursor:pointer;border-radius:3px}
-.ticker-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:14px}
-.ticker-tag{font-size:9px;padding:3px 8px;border:1px solid var(--border2);color:var(--muted2);cursor:pointer;border-radius:2px;letter-spacing:1px}
-.result{animation:fadeUp .25s ease}
-@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-.verdict-card{border-left:4px solid;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;border-radius:0 3px 3px 0}
-.verdict-company{font-size:9px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;margin-bottom:3px}
-.verdict-text{font-size:22px;font-weight:700;line-height:1;margin-bottom:4px}
-.verdict-reason{font-size:11px;color:#a0a8b0;line-height:1.5;max-width:440px}
-.score-num{font-size:44px;font-weight:700;color:var(--white);line-height:1}
-.score-lbl{font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
-.r-grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
-.r-panel{background:var(--card);border:1px solid var(--border);padding:12px;border-radius:3px}
-.r-title{font-size:9px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;font-weight:600}
-.bf-track{height:22px;background:var(--border);display:flex;overflow:hidden;margin:6px 0 4px;border-radius:2px}
-.bf-beer{background:var(--gold);display:flex;align-items:center;padding-left:7px}
-.bf-froth{flex:1;background:var(--border2);display:flex;align-items:center;justify-content:flex-end;padding-right:7px}
-.bf-lbl{font-size:9px;font-weight:600;color:var(--black);white-space:nowrap}
-.bf-froth .bf-lbl{color:var(--muted2)}
-.bf-legend{display:flex;justify-content:space-between;font-size:8px;color:var(--muted);margin-bottom:8px}
-.risk-bar{display:flex;gap:2px;margin:6px 0 8px}
-.risk-seg{flex:1;height:4px;border-radius:1px}
-.stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);margin-bottom:8px;border-radius:2px;overflow:hidden}
-.stat-box{background:var(--card2);padding:8px;text-align:center}
-.stat-val{font-size:13px;font-weight:700;color:var(--white);line-height:1;margin-bottom:2px}
-.stat-lbl{font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
-.badges{margin-bottom:8px}
-.badge{display:inline-block;font-size:9px;padding:2px 7px;border:1px solid;border-radius:2px;letter-spacing:.5px;margin-right:3px;margin-bottom:3px}
-.trade-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:10px}
-.trade-box{background:var(--card2);padding:10px;text-align:center}
-.trade-lbl{font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}
-.trade-val{font-size:12px;font-weight:700}
-.item-list{display:flex;flex-direction:column;gap:4px}
-.r-item{display:flex;gap:7px;align-items:flex-start;padding:6px 9px;background:var(--card2);border:1px solid var(--border);font-size:11px;color:#9aa0a8;line-height:1.4;border-radius:2px}
-.r-ico{min-width:14px;height:14px;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0;margin-top:1px}
-.bb-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.bull-box{background:var(--greenD);border:1px solid rgba(61,158,110,.2);padding:12px;border-radius:3px}
-.bear-box{background:var(--redD);border:1px solid rgba(201,74,74,.2);padding:12px;border-radius:3px}
-.bb-title{font-size:12px;font-weight:700;margin-bottom:8px}
-.bb-point{font-size:10px;color:#9aa0a8;line-height:1.5;padding-left:12px;position:relative;margin-bottom:5px}
-.bull-box .bb-point::before{content:'up';position:absolute;left:0;color:var(--green);font-size:9px}
-.bear-box .bb-point::before{content:'dn';position:absolute;left:0;color:var(--red);font-size:9px}
-.date-row{display:flex;justify-content:space-between;padding:5px 9px;background:var(--card2);border:1px solid var(--border);font-size:10px;margin-bottom:4px;border-radius:2px}
-.date-event{color:#9aa0a8}.date-when{color:var(--gold);font-size:9px;white-space:nowrap;margin-left:8px}
-.mentor-box{background:#080c10;border:1px solid var(--border);border-left:3px solid var(--blue);padding:14px;border-radius:0 3px 3px 0;margin-top:8px;margin-bottom:20px}
-.mentor-text{font-size:12px;color:#8aabb8;line-height:1.8;font-style:italic}
-.mentor-sig{font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:8px}
-.not-found{background:var(--amberD);border:1px solid var(--amber);padding:14px;border-radius:3px;font-size:12px;color:#b0905a;line-height:1.6}
-.loading{display:flex;align-items:center;gap:12px;padding:30px 16px;background:var(--card);border:1px solid var(--border);border-radius:3px}
-.spinner{width:22px;height:22px;border:2px solid var(--border2);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
-@keyframes spin{to{transform:rotate(360deg)}}
-.loading-msg{font-size:11px;color:var(--muted2);letter-spacing:1px;text-transform:uppercase}
-.phil-view{padding:12px 16px;max-width:900px;margin:0 auto}
-.phil-hero{background:linear-gradient(135deg,#1a0f2a 0%,#0f2030 100%);border:1px solid var(--purpleD);border-left:4px solid var(--purple);padding:18px;margin-bottom:14px;border-radius:0 3px 3px 0}
-.phil-score-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
-.phil-card{background:var(--card);border:1px solid var(--border);border-top:3px solid;padding:12px;border-radius:0 0 3px 3px}
-.phil-name{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px}
-.phil-quote{font-size:10px;color:var(--muted2);font-style:italic;line-height:1.5;margin-bottom:8px;border-left:2px solid var(--border2);padding-left:8px}
-.phil-question{font-size:10px;color:#9aa0a8;line-height:1.5;margin-bottom:6px;font-weight:600}
-.phil-answer{font-size:10px;color:var(--muted2);line-height:1.5;margin-bottom:6px;padding-left:8px}
-.phil-score-bar{height:4px;background:var(--border);border-radius:2px;margin-top:6px;overflow:hidden}
-.phil-score-fill{height:100%;border-radius:2px}
-.phil-score-label{display:flex;justify-content:space-between;margin-top:4px;font-size:9px;letter-spacing:1px}
-.verdict-combined{padding:16px;margin-bottom:14px;border-left:4px solid;border-radius:0 3px 3px 0}
-.scientific-verdict{background:#080c10;border:1px solid var(--border);border-left:3px solid var(--purple);padding:16px;border-radius:0 3px 3px 0;margin-bottom:20px}
-.sv-title{font-size:9px;color:var(--purple);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;font-weight:700}
-.sv-text{font-size:12px;color:#c0b8d0;line-height:1.9;font-style:italic}
-.commitment-box{background:var(--redD);border:1px solid rgba(201,74,74,.3);border-left:3px solid var(--red);padding:14px;margin-bottom:14px;border-radius:0 3px 3px 0}
-.commitment-item{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;font-size:11px;color:#c09090;line-height:1.5}
-.commitment-check{width:16px;height:16px;border:1px solid var(--red);border-radius:2px;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--red);cursor:pointer}
-.commitment-check.checked{background:var(--red);color:white}
-.phil-ticker-input{background:var(--card);border:1px solid var(--border2);color:var(--white);font-size:22px;font-weight:700;padding:10px 14px;outline:none;text-transform:uppercase;width:140px;letter-spacing:2px;border-radius:3px}
-.phil-ticker-input:focus{border-color:var(--purple)}
-.phil-btn{background:var(--purple);color:var(--white);border:none;font-size:13px;font-weight:700;letter-spacing:1px;padding:10px 24px;cursor:pointer;border-radius:3px}
-.radar-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:14px}
-.radar-item{background:var(--card);border:1px solid var(--border);padding:10px 8px;text-align:center;border-radius:3px}
-.radar-score{font-size:22px;font-weight:700;line-height:1;margin-bottom:3px}
-.radar-name{font-size:8px;color:var(--muted2);letter-spacing:1px;text-transform:uppercase}
-::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:var(--border2)}
-@media(max-width:480px){.pots{grid-template-columns:1fr;gap:6px}.r-grid2{grid-template-columns:1fr}.bb-grid{grid-template-columns:1fr}.rules-grid{grid-template-columns:1fr}.radar-grid{grid-template-columns:1fr 1fr}}
-</style>
-</head>
-<body>
-<div class="nav">
-  <div><div class="nav-title">📈 Trading Portfolio</div><div class="nav-sub">Beer &amp; Froth · May 2026</div></div>
-  <div class="nav-tabs">
-    <button class="nav-tab gold active" onclick="showView('portfolio')">Portfolio</button>
-    <button class="nav-tab blue" onclick="showView('tester')">Stress Test</button>
-    <button class="nav-tab purple" onclick="showView('philosophy')">Philosophy</button>
-  </div>
-</div>
-<div class="vix-bar">
-  <div><div class="vix-label">Fear Index (VIX)</div><div class="vix-value" id="vixValue">--</div><div class="vix-level" id="vixLevel">Loading...</div></div>
-  <div class="update-time" id="updateTime">--</div>
-</div>
-<div id="portfolioView" class="main">
-  <div class="pots">
-    <div class="pot" style="border-color:var(--gold)"><div class="pot-label">Pot 1 - Blue Chip</div><div class="pot-val" style="color:var(--gold)">Long Term</div><div class="pot-desc">9 stocks · Buy &amp; hold · DCA monthly · Never fully exit</div></div>
-    <div class="pot" style="border-color:var(--blue)"><div class="pot-label">Pot 2 - Active</div><div class="pot-val" style="color:var(--blue)">Tactical</div><div class="pot-desc">15 stocks · Beer/froth analysed · 10% max per position</div></div>
-    <div class="pot" style="border-color:var(--green)"><div class="pot-label">Pot 3 - Profits</div><div class="pot-val" style="color:var(--green)">Building</div><div class="pot-desc">Ring-fenced returns only · Future trading fuel</div></div>
-  </div>
-  <div class="dist">
-    <div class="dist-label">Fund Distribution</div>
-    <div class="dist-bar">
-      <div class="dist-seg" style="width:60%;background:var(--gold)"><span style="color:var(--black)">BLUE CHIP 60%</span></div>
-      <div class="dist-seg" style="width:30%;background:var(--blue)"><span style="color:var(--white)">ACTIVE 30%</span></div>
-      <div class="dist-seg" style="flex:1;background:var(--green)"><span style="color:var(--white);font-size:8px">CASH 10%</span></div>
-    </div>
-    <div class="dist-legend">
-      <div class="dist-leg-item"><div class="dist-leg-dot" style="background:var(--gold)"></div>Blue Chip - avg beer 63%</div>
-      <div class="dist-leg-item"><div class="dist-leg-dot" style="background:var(--blue)"></div>Active - stress test before entry</div>
-      <div class="dist-leg-item"><div class="dist-leg-dot" style="background:var(--green)"></div>Cash reserve</div>
-    </div>
-  </div>
-  <div class="section-hdr"><div class="section-title" style="color:var(--gold)">🏛 Blue Chip Base</div><div class="section-badge" style="background:var(--goldD);color:var(--gold)">9 STOCKS</div></div>
-  <div class="stock-grid" id="blueChipGrid"></div>
-  <div class="section-hdr"><div class="section-title" style="color:var(--blue)">⚡ Active Trading</div><div class="section-badge" style="background:var(--blueD);color:var(--blue)" id="activeCount">15 STOCKS</div></div>
-  <div class="stock-grid" id="activeGrid"></div>
-  <div class="section-hdr"><div class="section-title" style="color:var(--amber)">🟡 IPO Pipeline</div><div class="section-badge" style="background:var(--amberD);color:var(--amber)">WATCH ONLY</div></div>
-  <div id="ipoGrid">
-    <div class="ipo-card"><div class="ipo-top"><div class="ipo-ticker">FRVO</div><div class="ipo-status">IPO ~May 11</div></div><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">Fervo Energy - Geothermal AI power</div><div class="ipo-note">Do NOT chase day-one pop. Watch 2-4 weeks post-listing.</div></div>
-    <div class="ipo-card"><div class="ipo-top"><div class="ipo-ticker">1X</div><div class="ipo-status">Private</div></div><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">1X Technologies - OpenAI-backed humanoid robotics</div><div class="ipo-note">Monitor for IPO. NEO home robot shipping 2026.</div></div>
-  </div>
-  <div class="rules">
-    <div class="rules-title">Golden Rules - Never Break</div>
-    <div class="rules-grid">
-      <div class="rule-item">Stop loss set BEFORE every trade</div>
-      <div class="rule-item">Profit target set BEFORE every trade</div>
-      <div class="rule-item">Never chase a gap up of 10%+</div>
-      <div class="rule-item">No trade within 48hrs of earnings</div>
-      <div class="rule-item">Max 10% per position (5% HIGH risk)</div>
-      <div class="rule-item">24hr rule on any impulse buy</div>
-      <div class="rule-item">Run stress tester before every entry</div>
-      <div class="rule-item">Weekly Friday portfolio review</div>
-    </div>
-  </div>
-</div>
-<div id="testerView" class="tester" style="display:none">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-    <button class="back-btn" onclick="showView('portfolio')">Back</button>
-    <div class="tester-title">Pre-Trade Stress Tester</div>
-  </div>
-  <div class="input-row">
-    <input class="ticker-input" id="tickerInput" type="text" placeholder="NVDA" maxlength="6" oninput="this.value=this.value.toUpperCase()"/>
-    <input class="pos-input" id="posInput" type="number" placeholder="Position size GBP"/>
-    <button class="analyse-btn" onclick="runAnalysis()">Analyse</button>
-  </div>
-  <div class="ticker-tags" id="tickerTags"></div>
-  <div id="analysisResult">
-    <div style="text-align:center;padding:50px 20px;background:var(--card);border:1px solid var(--border);border-radius:3px">
-      <div style="font-size:36px;font-weight:700;color:var(--border2);letter-spacing:3px;margin-bottom:10px">READY</div>
-      <div style="font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;line-height:2">Select ticker · Enter position · Tap Analyse</div>
-    </div>
-  </div>
-</div>
-<div id="philosophyView" class="phil-view" style="display:none">
-  <div class="phil-hero">
-    <div style="font-size:9px;color:var(--purple);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;font-weight:700">🧠 Philosophical Scoring Engine v2 - Price Aware</div>
-    <div style="font-size:18px;font-weight:700;color:var(--white);margin-bottom:4px">Seven Philosophers + Live Price Intelligence</div>
-    <div style="font-size:11px;color:#a090c0;line-height:1.6">The same stock scores differently at different prices. Fear and greed are now measured.</div>
-  </div>
-  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-    <input class="phil-ticker-input" id="philTickerInput" type="text" placeholder="NVDA" maxlength="6" oninput="this.value=this.value.toUpperCase()"/>
-    <button class="phil-btn" onclick="runPhilosophy()">Analyse Philosophy</button>
-  </div>
-  <div class="ticker-tags" id="philTags" style="margin-bottom:16px"></div>
-  <div class="commitment-box">
-    <div style="font-size:10px;color:var(--red);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;font-weight:700">Pre-Trade Commitments</div>
-    <div class="commitment-item"><div class="commitment-check" id="c1" onclick="toggleCommit(1)">x</div><div><strong style="color:var(--white)">Stop Loss</strong> - I will set my stop loss immediately after entry.</div></div>
-    <div class="commitment-item"><div class="commitment-check" id="c2" onclick="toggleCommit(2)">x</div><div><strong style="color:var(--white)">Stress Tested</strong> - I have run the pre-trade stress tester.</div></div>
-    <div class="commitment-item"><div class="commitment-check" id="c3" onclick="toggleCommit(3)">x</div><div><strong style="color:var(--white)">Let It Execute</strong> - If my stop triggers I will let it execute.</div></div>
-    <div id="commitStatus" style="font-size:10px;color:var(--muted2);margin-top:8px;font-style:italic">Tick all three before trading.</div>
-  </div>
-  <div id="philResult">
-    <div style="text-align:center;padding:50px 20px;background:var(--card);border:1px solid var(--border);border-radius:3px">
-      <div style="font-size:36px;font-weight:700;color:var(--border2);letter-spacing:3px;margin-bottom:10px">READY</div>
-      <div style="font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;line-height:2">Enter ticker · Tap Analyse Philosophy</div>
-    </div>
-  </div>
-</div>
-<script>
-const BLUE_CHIPS=[
-  {ticker:'NVDA',name:'Nvidia',alloc:15,beer:60,risk:'MEDIUM',note:'Core AI anchor - earnings May 20'},
-  {ticker:'AVGO',name:'Broadcom',alloc:12,beer:55,risk:'MEDIUM',note:'Highest quality AI chip business'},
-  {ticker:'TSM',name:'Taiwan Semi',alloc:12,beer:70,risk:'MED-HIGH',note:'Cheapest quality chip at 23x PE'},
-  {ticker:'ASML',name:'ASML Holding',alloc:10,beer:65,risk:'MEDIUM',note:'EUV monopoly - highest beer score'},
-  {ticker:'MSFT',name:'Microsoft',alloc:12,beer:65,risk:'MEDIUM',note:'Azure + Copilot - complete AI platform'},
-  {ticker:'AAPL',name:'Apple',alloc:10,beer:65,risk:'MEDIUM',note:'Services flywheel + AI supercycle'},
-  {ticker:'GOOGL',name:'Alphabet',alloc:10,beer:65,risk:'MEDIUM',note:'Cheapest mega-cap at 19x forward PE'},
-  {ticker:'META',name:'Meta Platforms',alloc:10,beer:60,risk:'MEDIUM',note:'Post-earnings dip is entry window'},
-  {ticker:'AMZN',name:'Amazon',alloc:9,beer:62,risk:'MEDIUM',note:'AWS + Ads + Prime - three engines'},
-];
-const ACTIVE_STOCKS=[
-  {ticker:'MU',name:'Micron',alloc:12,beer:50,risk:'MED-HIGH',note:'Wait for pullback - June 23 earnings'},
-  {ticker:'CEG',name:'Constellation Energy',alloc:12,beer:60,risk:'MEDIUM',note:'Nuclear power - post earnings entry'},
-  {ticker:'MBLY',name:'Mobileye',alloc:12,beer:55,risk:'MEDIUM',note:'Best value - below book value'},
-  {ticker:'CIEN',name:'Ciena',alloc:8,beer:55,risk:'MEDIUM',note:'Optical networking - wait for pullback'},
-  {ticker:'LEU',name:'Centrus Energy',alloc:8,beer:50,risk:'MED-HIGH',note:'Nuclear HALEU monopoly - 3yr hold'},
-  {ticker:'SOLS',name:'Solstice Materials',alloc:8,beer:60,risk:'MEDIUM',note:'Nuclear + AI chips + cooling'},
-  {ticker:'MP',name:'MP Materials',alloc:6,beer:50,risk:'MED-HIGH',note:'Rare earth - wait for earnings'},
-  {ticker:'TER',name:'Teradyne',alloc:6,beer:50,risk:'MEDIUM',note:'Every robot needs testing'},
-  {ticker:'VRT',name:'Vertiv',alloc:6,beer:45,risk:'MED-HIGH',note:'Data centre power - wait for dip'},
-  {ticker:'AMD',name:'AMD',alloc:5,beer:35,risk:'HIGH',note:'Wait for consolidation'},
-  {ticker:'WDC',name:'Western Digital',alloc:5,beer:55,risk:'MED-HIGH',note:'AI storage - wait for pullback'},
-  {ticker:'SNDK',name:'SanDisk',alloc:5,beer:55,risk:'MED-HIGH',note:'NAND supercycle - wait $1200-1300'},
-  {ticker:'XRP',name:'XRP Ripple',alloc:3,beer:40,risk:'HIGH',note:'Catalyst trade - CLARITY Act'},
-  {ticker:'AMTM',name:'Amentum',alloc:7,beer:55,risk:'MEDIUM',note:'Q2 beat - $47.8B backlog'},
-  {ticker:'IREN',name:'IREN Ltd',alloc:4,beer:30,risk:'VERY HIGH',note:'Max 3% - very high risk'},
-  {ticker:'BE',name:'Bloom Energy',alloc:4,beer:35,risk:'VERY HIGH',note:'Momentum trade only'},
-  {ticker:'TSLA',name:'Tesla',alloc:3,beer:25,risk:'HIGH',note:'Froth trade on Optimus news'},
-  {ticker:'BMNR',name:'BitMine',alloc:2,beer:10,risk:'EXTREME',note:'Crypto - 1-2% max only'},
-  {ticker:'NBIS',name:'Nebius Group',alloc:5,beer:55,risk:'MED-HIGH',note:'802% AI cloud growth - $46B backlog'},
-  {ticker:'LITE',name:'Lumentum',alloc:5,beer:60,risk:'MED-HIGH',note:'90% revenue growth - optical supercycle'},
-  {ticker:'MRVL',name:'Marvell Technology',alloc:5,beer:55,risk:'MED-HIGH',note:'Custom AI silicon - wait May 27 earnings'},
-  {ticker:'WIX',name:'Wix.com',alloc:4,beer:55,risk:'MEDIUM',note:'AI website builder - $1.9B ARR'},
-  {ticker:'QCOM',name:'Qualcomm',alloc:5,beer:60,risk:'MEDIUM',note:'Edge AI + robotics - June 24 Investor Day'},
-  {ticker:'TSEM',name:'Tower Semiconductor',alloc:4,beer:55,risk:'MEDIUM',note:'Speciality foundry - Intel partnership'},
-  {ticker:'FN',name:'Fabrinet',alloc:4,beer:55,risk:'MEDIUM',note:'Optical manufacturing - AI picks and shovels'},
-  {ticker:'COHR',name:'Coherent',alloc:3,beer:40,risk:'HIGH',note:'Wait for pullback to $270-290'},
-];
-const DB={
-  NVDA:{name:'Nvidia Corp',sector:'AI Infrastructure',beer:60,froth:40,risk:'MEDIUM',score:76,verdict:'GO',reason:'Worlds second largest asset at $5.49T. Dominant AI infrastructure. Core blue chip.',beerPts:['FY2026 revenue $215.9B - up 65% YoY','Free cash flow $96.6B','Gross margins 71%','$54B net cash'],frothPts:['EARNINGS MAY 20 - critical event','Custom silicon from hyperscalers risk','Export restrictions to China live','$5.49T market cap - high bar'],bull:['Blackwell GPU demand backlogged into 2027','Isaac GR00T robotics - second engine','Dominant CUDA ecosystem - 10yr moat','May 20 earnings catalyst','Data centre, gaming, automotive'],bear:['MAY 20 EARNINGS - 10-15% move either way','Custom silicon from Google, Amazon','US-China export controls','AMD MI300 gaining share','Top 5 customers concentrated'],checks:[{t:'EARNINGS MAY 20',s:'fail',n:'Do NOT enter large position before May 20'},{t:'Insider activity',s:'warn',n:'Jensen selling - standard exec plan'},{t:'Institutional',s:'pass',n:'Universal ownership'},{t:'Balance sheet',s:'pass',n:'$54B net cash, $96.6B FCF'},{t:'Revenue growth',s:'pass',n:'65% YoY'},{t:'Short interest',s:'pass',n:'Very low'},{t:'Valuation',s:'pass',n:'Modest premium to fair value'},{t:'Macro',s:'pass',n:'AI supercycle intact'}],dates:[{e:'CRITICAL EARNINGS',w:'May 20 2026'},{e:'Blackwell production',w:'Ongoing 2026'}],inst:'BULLISH',consensus:'STRONG BUY',target:'~$270 avg / $315 Wells Fargo',stop:'Live -8%',tgt:'Live +10%',posRec:10,vix:'Wait for May 20 before large position.',dca:'Wait for May 20. Beat = buy open. Miss = buy the dip. DCA 3 tranches.',corr:'Nvidia IS your AI thesis anchor. Size everything else relative to it.',mentor:'Nvidia is the single best business on your watchlist. May 20 earnings is the only issue - do not open a large position before then. Use the result as your entry trigger.'},
-  AVGO:{name:'Broadcom Inc',sector:'AI Infrastructure',beer:55,froth:45,risk:'MEDIUM',score:72,verdict:'GO',reason:'World-class AI chip business with exceptional FCF and 76% gross margins.',beerPts:['Q1 FY2026 revenue $19.3B - up 29% YoY','Free cash flow $8B - 41% of revenue','Gross margins 76.73%','Return on equity 33.37%'],frothPts:['36% above intrinsic value estimates','Hyperscaler customer concentration','Q2 guide $22B demands continued AI capex','High PE demands flawless execution'],bull:['AI revenue growing 106% YoY to $8.4B','Custom chips for Google, Meta, Apple','VMware integration driving software revenue','$22B Q2 guidance - 47% YoY growth','Dominant networking semiconductor'],bear:['Hyperscaler capex could slow','Custom silicon competition from cloud giants','36% above fair value','VMware integration risk','Macro slowdown hits enterprise'],checks:[{t:'Earnings',s:'pass',n:'Next earnings June 2026'},{t:'Insider',s:'warn',n:'Some exec selling at elevated prices'},{t:'Institutional',s:'pass',n:'BlackRock, Vanguard bullish'},{t:'Balance sheet',s:'pass',n:'$8B FCF, manageable debt'},{t:'Revenue growth',s:'pass',n:'29% YoY accelerating'},{t:'Short interest',s:'pass',n:'Low ~1.5% of float'},{t:'Valuation',s:'warn',n:'PE ~35x - premium to sector'},{t:'Macro',s:'pass',n:'AI capex supercycle intact'}],dates:[{e:'Next earnings',w:'Jun 2026'}],inst:'BULLISH',consensus:'BUY',target:'~$450',stop:'Live -8%',tgt:'Live +10%',posRec:10,vix:'Core holding candidate.',dca:'Split 2 tranches. 50% now, 50% on any 5% pullback.',corr:'High correlation with AMD, NVDA - limit total AI chip exposure.',mentor:'Broadcom is the highest quality business on your watchlist with real cash, real earnings, and genuine AI dominance. A core blue chip holding.'},
-  TSM:{name:'Taiwan Semiconductor',sector:'Semiconductor Foundry',beer:70,froth:30,risk:'MED-HIGH',score:74,verdict:'GO',reason:'Highest beer score - 50% net margins, 8 consecutive beats, every AI chip runs through TSMC.',beerPts:['Q1 2026 revenue $35.9B - up 40.6% YoY','Net profit margin 50.5%','Gross margin 66.2%','Eight consecutive quarterly beats'],frothPts:['Taiwan geopolitical risk','Arizona fab ramp margin dilution H2 2026','$52-56B annual capex requirement','Concentrated customers'],bull:['Manufactures for Nvidia, Apple, AMD, Broadcom','3nm at 25% of revenue','23x forward PE - cheapest quality chip','2026 revenue growth above 30%','Arizona fabs reduce geopolitical risk'],bear:['Taiwan-China tension - tail risk','Arizona fabs dilute margins H2','Apple iPhone slowdown impacts','Samsung competing on advanced nodes','$56B capex needs sustained demand'],checks:[{t:'Earnings',s:'pass',n:'Q1 reported April - next July 2026'},{t:'Insider',s:'neutral',n:'No unusual activity'},{t:'Institutional',s:'pass',n:'Universal ownership'},{t:'Balance sheet',s:'pass',n:'Massive cash generation, 40.5% ROE'},{t:'Revenue growth',s:'pass',n:'40.6% YoY'},{t:'Short interest',s:'pass',n:'Very low'},{t:'Valuation',s:'pass',n:'23x forward PE - cheapest quality chip'},{t:'Macro',s:'warn',n:'Taiwan geopolitical risk always present'}],dates:[{e:'Next earnings',w:'Jul 2026'},{e:'Arizona N2 fab',w:'H2 2026'}],inst:'BULLISH',consensus:'BUY',target:'~$420',stop:'Live -8%',tgt:'Live +10%',posRec:10,vix:'Taiwan risk permanent. Size accordingly.',dca:'DCA 3 tranches over 8 weeks.',corr:'Direct AI chip correlation.',mentor:'TSMC has the highest beer score at 70% - 50% net margins and eight consecutive beats. The 23x forward PE is cheap versus peers. Buy it, hold it, let it compound.'},
-  ASML:{name:'ASML Holding NV',sector:'Semiconductor Equipment',beer:65,froth:35,risk:'MEDIUM',score:78,verdict:'GO',reason:'Global EUV monopoly - the only company making machines that make advanced chips.',beerPts:['Q1 2026 revenue 8.8B - beat estimates','FCF $10.49B, ROIC 74.16%','Net cash $6.53B','0.18% short interest - virtually no bears'],frothPts:['Forward PE 43x','TSMC delayed High-NA EUV','China restrictions limit market','Stock fell 6% on beat+raise'],bull:['Absolute monopoly - no EUV competitor exists','Every advanced chip needs ASML machines','2026 guidance raised to 36-40B','Analysts see 26% additional upside','AI chip demand = insatiable ASML demand'],bear:['China restrictions cut market','TSMC High-NA delay','Forward PE 43x - miss hits hard','Stock up 31% YTD','High-NA adoption slower than hoped'],checks:[{t:'Earnings',s:'pass',n:'Q1 reported April - next July'},{t:'Insider',s:'neutral',n:'No unusual activity'},{t:'Institutional',s:'pass',n:'Universal ownership'},{t:'Balance sheet',s:'pass',n:'Net cash $6.53B, ROIC 74.16%'},{t:'Revenue growth',s:'pass',n:'Guidance raised to 36-40B'},{t:'Short interest',s:'pass',n:'Just 0.18% of float'},{t:'Valuation',s:'warn',n:'43x forward PE'},{t:'Macro',s:'pass',n:'AI chip demand structural'}],dates:[{e:'Next earnings',w:'Jul 2026'}],inst:'BULLISH',consensus:'BUY',target:'~$1,461',stop:'Live -8%',tgt:'Live +10%',posRec:10,vix:'Quality name, patient entry rewarded.',dca:'DCA 3 tranches over 8 weeks.',corr:'Moderate AI chip correlation.',mentor:'ASML is the picks-and-shovels of the entire semiconductor industry with 74% ROIC and genuine global monopoly. Buy and compound.'},
-  MSFT:{name:'Microsoft Corporation',sector:'Cloud / AI Platform',beer:65,froth:35,risk:'MEDIUM',score:75,verdict:'GO',reason:'Azure + Copilot = most complete enterprise AI platform. Consistent execution, extraordinary cash flow.',beerPts:['Azure growing 35%+','Operating cash flow $30B+ quarterly','85%+ gross margins on cloud','20+ consecutive years of dividend growth'],frothPts:['Forward PE ~32x','OpenAI relationship uncertainty','EU regulatory pressure','Copilot monetisation slower than hoped'],bull:['Azure + Copilot = complete enterprise AI','GitHub Copilot adoption accelerating','Office 365 Copilot adding ARPU','Gaming - Xbox and Activision','Government cloud contracts'],bear:['OpenAI could become a competitor','Google Cloud and AWS competing hard','Copilot ROI debates','32x PE requires sustained growth','Regulatory risk on cloud dominance'],checks:[{t:'Earnings',s:'pass',n:'Q3 FY26 reported - next July 2026'},{t:'Insider',s:'neutral',n:'Standard plans'},{t:'Institutional',s:'pass',n:'Universal ownership globally'},{t:'Balance sheet',s:'pass',n:'Net cash, AAA credit rating'},{t:'Revenue growth',s:'pass',n:'Azure 35%+ accelerating'},{t:'Short interest',s:'pass',n:'Minimal'},{t:'Valuation',s:'warn',n:'32x forward PE'},{t:'Macro',s:'pass',n:'Enterprise AI adoption structural'}],dates:[{e:'Next earnings',w:'Jul 2026'}],inst:'BULLISH',consensus:'STRONG BUY',target:'~$500',stop:'Live -8%',tgt:'Live +10%',posRec:10,vix:'Core blue chip - buy and compound.',dca:'DCA monthly. Core - never fully sell.',corr:'Moderate tech correlation.',mentor:'Microsoft has the most complete AI platform. Azure 35% growth with AI services accelerating makes this a structural long-term hold.'},
-  AAPL:{name:'Apple Inc',sector:'Consumer Technology',beer:65,froth:35,risk:'MEDIUM',score:74,verdict:'GO',reason:'Worlds most valuable brand - services flywheel accelerating, Apple Intelligence incoming.',beerPts:['Services revenue $26.6B Q1 2026 - up 14% YoY','$88B+ annual operating cash flow','Net cash $50B+','Services gross margin ~75%'],frothPts:['iPhone growth slowing in China','Forward PE ~28x','Apple Intelligence slower than expected','China regulatory and trade war risk'],bull:['Services flywheel - App Store, iCloud, Apple Pay','Apple Intelligence supercycle upgrade trigger','$90B+ annual buybacks','India manufacturing reduces China dependency','2.2B active devices'],bear:['iPhone revenue growth slowing','China 20%+ revenue - geopolitical risk','AI features slower to monetise','Memory cost pressure','App Store antitrust risk'],checks:[{t:'Earnings',s:'pass',n:'Q1 reported - next August 2026'},{t:'Insider',s:'neutral',n:'Standard plans'},{t:'Institutional',s:'pass',n:'Berkshire Hathaway largest holder'},{t:'Balance sheet',s:'pass',n:'Net cash $50B+, $88B OCF'},{t:'Revenue growth',s:'pass',n:'Services accelerating'},{t:'Short interest',s:'pass',n:'Very low'},{t:'Valuation',s:'warn',n:'28x forward PE'},{t:'Macro',s:'warn',n:'China trade tensions'}],dates:[{e:'Next earnings',w:'Aug 2026'},{e:'WWDC Apple Intelligence',w:'Jun 2026'}],inst:'BULLISH',consensus:'BUY',target:'~$220',stop:'Live -8%',tgt:'Live +10%',posRec:10,vix:'Core blue chip.',dca:'DCA monthly. Core - never fully sell.',corr:'Lower correlation - services provides stability.',mentor:'Apple is the definition of a blue chip foundation stock. $88B annual cash flow, worlds most powerful brand, services flywheel compounding every year.'},
-  GOOGL:{name:'Alphabet Inc',sector:'Search / Cloud / AI',beer:65,froth:35,risk:'MEDIUM',score:73,verdict:'GO',reason:'Cheapest mega-cap at 19x forward PE - Search monopoly + YouTube + Cloud AI compounding quietly.',beerPts:['Q1 2026 revenue $90.2B - up 12% YoY','Google Cloud growing 28%','Operating margin 34%','$95B+ cash'],frothPts:['Search AI disruption risk','DOJ antitrust','YouTube vs TikTok','Waymo capital intensive'],bull:['19x forward PE - cheapest mega-cap','Gemini AI across all products','Google Cloud competing with Azure','YouTube dominant platform','$95B cash - massive buyback engine'],bear:['ChatGPT and Perplexity threatening search','DOJ could force structural separation','Advertising cyclical','EU fines growing','Apple Safari default shift risk'],checks:[{t:'Earnings',s:'pass',n:'Q1 reported April - next July'},{t:'Insider',s:'neutral',n:'Standard plans'},{t:'Institutional',s:'pass',n:'Universal ownership'},{t:'Balance sheet',s:'pass',n:'$95B+ cash'},{t:'Revenue growth',s:'pass',n:'12% total, Cloud 28%'},{t:'Short interest',s:'warn',n:'Some shorts on AI disruption'},{t:'Valuation',s:'pass',n:'19x forward PE - compelling value'},{t:'Macro',s:'pass',n:'Digital advertising structural growth'}],dates:[{e:'Next earnings',w:'Jul 2026'},{e:'DOJ ruling',w:'Watch closely'}],inst:'BULLISH',consensus:'BUY',target:'~$205',stop:'Live -8%',tgt:'Live +10%',posRec:10,vix:'Compelling value.',dca:'Buy on DOJ news dips.',corr:'Moderate tech correlation.',mentor:'Alphabet is the most interesting valuation in mega-cap tech - 19x forward PE for 28% Cloud growth. DOJ dips are buying opportunities.'},
-  META:{name:'Meta Platforms Inc',sector:'Social Media / AI Ads',beer:60,froth:40,risk:'MEDIUM',score:71,verdict:'GO',reason:'AI advertising juggernaut - 33% revenue growth at 19.5x forward PE below 5-year average.',beerPts:['Q1 2026 revenue $56.31B - up 33% YoY','Net income $26.77B - up 61%','$81.18B cash','3.56B daily active people'],frothPts:['Capex $125-145B 2026','Stock fell 6% post-earnings on capex','EU regulatory headwinds','Operating margin 41% vs 48% peak'],bull:['Ad impressions +19% AND price +12%','Forward PE 19.5x - below 5-year average','Meta AI engagement accelerating','Q2 guidance $58-61B','$125-145B capex = massive AI moat'],bear:['$125-145B capex weighs on FCF','6% drop signals market capex fatigue','EU regulatory risk','Reality Labs still loss-making','Ad market slowdown'],checks:[{t:'Earnings',s:'pass',n:'Q1 reported April 29 - next July'},{t:'Insider',s:'warn',n:'Zuckerberg sells regularly'},{t:'Institutional',s:'pass',n:'Strong buy consensus'},{t:'Balance sheet',s:'pass',n:'$81.18B cash'},{t:'Revenue growth',s:'pass',n:'33% YoY - 14 consecutive beats'},{t:'Short interest',s:'pass',n:'Low'},{t:'Valuation',s:'pass',n:'19.5x forward PE - below 5yr average'},{t:'Macro',s:'pass',n:'AI ad targeting improving'}],dates:[{e:'Next earnings',w:'Jul 2026'}],inst:'BULLISH',consensus:'BUY',target:'~$826',stop:'Live -8%',tgt:'Live +10%',posRec:10,vix:'Post-earnings dip is the entry window.',dca:'Enter 50% now on weakness, 50% over next 3 weeks.',corr:'Moderate tech correlation.',mentor:'Metas Q1 was exceptional - 33% revenue growth, 61% net income. Post-earnings dip at 19.5x forward PE is your entry window.'},
-  AMZN:{name:'Amazon Inc',sector:'Cloud / E-Commerce',beer:62,froth:38,risk:'MEDIUM',score:70,verdict:'GO',reason:'Three compounding engines - AWS cloud, advertising, and Prime retail flywheel all accelerating.',beerPts:['AWS revenue $29.3B Q1 2026 - up 17% YoY','Operating income $18.4B','Advertising $13.9B - high margin','FCF positive and accelerating'],frothPts:['$105B+ capex 2026','Forward PE ~33x','Retail margins thin','Antitrust scrutiny ongoing'],bull:['AWS dominant cloud - AI workloads accelerating','Bedrock AI services gaining traction','Advertising $13.9B - Google-like margins','Project Kuiper satellite','Prime 200M+ members'],bear:['$105B capex weighs on FCF','Azure and Google gaining AI share','Retail structurally low margin','Regulatory risk growing'],checks:[{t:'Earnings',s:'pass',n:'Q1 reported May 1 - next August'},{t:'Insider',s:'neutral',n:'Bezos selling planned'},{t:'Institutional',s:'pass',n:'Strong global ownership'},{t:'Balance sheet',s:'pass',n:'FCF turning strongly positive'},{t:'Revenue growth',s:'pass',n:'AWS 17% accelerating'},{t:'Short interest',s:'pass',n:'Low'},{t:'Valuation',s:'warn',n:'33x forward PE'},{t:'Macro',s:'pass',n:'Cloud and AI structural'}],dates:[{e:'Next earnings',w:'Aug 2026'}],inst:'BULLISH',consensus:'BUY',target:'~$240',stop:'Live -8%',tgt:'Live +10%',posRec:10,vix:'Good conditions for blue chip entry.',dca:'DCA monthly.',corr:'Tech correlation but AWS partially independent.',mentor:'Amazon has three compounding engines - AWS, advertising, and Prime. Buy as a foundational hold.'},
-  MU:{name:'Micron Technology',sector:'AI Memory',beer:50,froth:50,risk:'MED-HIGH',score:61,verdict:'CAUTION',reason:'Memory supercycle real but surged significantly - wait for consolidation. June 23 earnings window.',beerPts:['Q1 revenue $13.6B - up 57% YoY','Gross margin 56.8% expanding','Forward PE just 6.87x','Fitch credit upgrade'],frothPts:['Large recent surge - overextended','Above intrinsic value estimates','Memory cycles historically boom-bust','Inventory buildup risk'],bull:['HBM memory for AI GPUs - fastest segment','Memflation driving pricing power','Next earnings June 23 - clean window','DRAM supply discipline improving','AI memory demand structural'],bear:['Recent surge - do not chase','Memory historically very cyclical','Samsung and SK Hynix aggressive','Any AI capex slowdown hits memory first','Above intrinsic value'],checks:[{t:'Earnings',s:'pass',n:'Next earnings June 23 - clear'},{t:'Insider',s:'neutral',n:'No significant recent activity'},{t:'Institutional',s:'pass',n:'Strong accumulation on AI thesis'},{t:'Balance sheet',s:'pass',n:'Fitch upgrade - strong'},{t:'Revenue growth',s:'pass',n:'57% YoY - exceptional'},{t:'Short interest',s:'warn',n:'Elevated from cycle bears'},{t:'Valuation',s:'pass',n:'Forward PE 6.87x - cheapest chip'},{t:'Macro',s:'pass',n:'AI memory demand structural'}],dates:[{e:'Next earnings',w:'Jun 23 2026'},{e:'NVDA read-through',w:'May 20'}],inst:'BULLISH',consensus:'BUY',target:'~$700',stop:'Live -8%',tgt:'Live +10%',posRec:7,vix:'Wait for consolidation before entry.',dca:'Target pullback. Set price alert and wait.',corr:'Directly correlated with NVDA, AMD.',mentor:'Micron is compelling - real profits, AI supercycle, forward PE 6.87x. Wait for consolidation before entry.'},
-  CEG:{name:'Constellation Energy',sector:'Nuclear Power',beer:60,froth:40,risk:'MEDIUM',score:70,verdict:'GO',reason:'Americas largest nuclear operator - government-backed revenue, Fortune 100 customers.',beerPts:['Largest private power producer - 55GW','$3.9B FCF before growth 2026-2027','20%+ base EPS growth 2026-2029','Microsoft, Meta, US government anchors'],frothPts:['Three Mile Island delayed to 2031','Down from highs','Dependent on hyperscaler AI spending','No new hyperscaler deals announced'],bull:['Nuclear = 24/7 carbon-free baseload','45U nuclear tax credit underpins earnings','~80% of Fortune 100 as customers','Analyst target $384 - 27% upside','AI power constraint structural'],bear:['Three Mile Island 4 years late','AI capex slowdown hits power pipeline','Nuclear regulation risk','Capital intensive','Execution risk proven real'],checks:[{t:'Earnings',s:'pass',n:'Q1 reported - next quarter clear'},{t:'Insider',s:'neutral',n:'No unusual activity'},{t:'Institutional',s:'pass',n:'Clean energy mandates driving inflows'},{t:'Balance sheet',s:'pass',n:'$4B projected FCF 2026-2027'},{t:'Revenue growth',s:'pass',n:'20%+ EPS growth - government-backed'},{t:'Short interest',s:'pass',n:'Low'},{t:'Valuation',s:'pass',n:'Reasonable after pullback'},{t:'Macro',s:'pass',n:'AI power demand structural'}],dates:[{e:'Next earnings',w:'Q2 2026'},{e:'New data centre deals',w:'Watch'}],inst:'BULLISH',consensus:'BUY',target:'~$384',stop:'Live -8%',tgt:'Live +10%',posRec:10,vix:'Good conditions for entry.',dca:'DCA 2 tranches.',corr:'Low AI chip correlation - great diversifier.',mentor:'Constellation is your best energy stock. Real business, government-backed revenue. $296 post-earnings is an attractive entry level.'},
-  MBLY:{name:'Mobileye Global',sector:'Robotics / Vision',beer:55,froth:45,risk:'MEDIUM',score:71,verdict:'GO',reason:'Best value play - below book value, 27% revenue growth, robotics pivot unpriced.',beerPts:['Trading at 0.52x book - below asset value','$24.5B revenue pipeline','Q1 2026 revenue up 27% - beat estimate','Mentee Robotics acquisition'],frothPts:['Intel ownership creates uncertainty','Humanoid commercialisation 2027+','Tesla Vision competition','Down 33% over 52 weeks'],bull:['Trading BELOW book value','AV and robotics = same spatial intelligence','Q1 beat signals acceleration','Humanoid option priced at zero','60% analyst BUY'],bear:['Intel may force strategic changes','Tesla FSD improving rapidly','Chinese ADAS aggressive pricing','Humanoid timeline uncertain'],checks:[{t:'Earnings',s:'pass',n:'Q1 reported - next July 23'},{t:'Insider',s:'neutral',n:'Intel controls'},{t:'Institutional',s:'pass',n:'60% analyst buy ratings'},{t:'Balance sheet',s:'pass',n:'0.52x book - assets exceed market cap'},{t:'Revenue growth',s:'pass',n:'27% YoY'},{t:'Short interest',s:'warn',n:'Elevated on Intel pressure'},{t:'Valuation',s:'pass',n:'Below book - cheapest on watchlist'},{t:'Macro',s:'pass',n:'AV and robotics - two decade tailwind'}],dates:[{e:'Next earnings',w:'Jul 23 2026'}],inst:'BULLISH',consensus:'BUY',target:'~$14',stop:'Live -8%',tgt:'Live +10%',posRec:10,vix:'Favourable conditions for value entry.',dca:'Cleanest entry now. 50% now, 50% over 2-3 weeks.',corr:'Lower correlation - good diversifier.',mentor:'Mobileye is your best current entry - the only stock trading below the value of its own assets. Intel overhang is the main risk.'},
-  AMD:{name:'Advanced Micro Devices',sector:'AI Infrastructure',beer:35,froth:65,risk:'HIGH',score:52,verdict:'CAUTION',reason:'Outstanding Q1 but large overnight gap - do not chase. Wait for consolidation.',beerPts:['Q1 revenue $10.3B - beat by 4%','Data centre $5.78B - up 57% YoY','Record FCF $2.6B','Q2 guidance $11.2B - above consensus'],frothPts:['Large gap up - do not chase','Forward PE ~42x','65% froth - high speculative premium','Nvidia dominates training workloads'],bull:['57% data centre growth validates thesis','$11.2B Q2 guide shows momentum','MI300X gaining inference share','Intel AI partnership','Strong beat across all segments'],bear:['Gap = optimal entry gone','HSBC downgraded to Hold','PE 42x - no room for error','Nvidia dominance hard to break','ARK sold before earnings'],checks:[{t:'Earnings',s:'pass',n:'Q1 just reported - next ~August'},{t:'Insider',s:'warn',n:'ARK sold pre-earnings'},{t:'Institutional',s:'pass',n:'Strong - 70%+ institutional'},{t:'Balance sheet',s:'pass',n:'Record FCF $2.6B'},{t:'Revenue growth',s:'pass',n:'38% YoY'},{t:'Short interest',s:'pass',n:'Low'},{t:'Valuation',s:'warn',n:'Forward PE 42x'},{t:'Macro',s:'pass',n:'AI infrastructure capex intact'}],dates:[{e:'Next earnings',w:'~Aug 2026'},{e:'MI350 GPU launch',w:'H2 2026'}],inst:'BULLISH',consensus:'BUY',target:'~$450',stop:'Live -8%',tgt:'Live +10%',posRec:5,vix:'AMD overextended post-gap.',dca:'Target consolidation. Set alert. Do not chase.',corr:'Very high correlation with NVDA, AVGO.',mentor:'AMD results were excellent but our rule is clear - never chase a large gap. Wait for consolidation then enter with discipline.'},
-  WDC:{name:'Western Digital Corp',sector:'AI Storage',beer:55,froth:45,risk:'MED-HIGH',score:63,verdict:'CAUTION',reason:'AI storage supercycle delivering but large YTD gain means patience on entry.',beerPts:['Q3 FY2026 revenue $3.34B - up 45.5% YoY','Gross margin crossed 50% first time','Free cash flow $978M - up 158%','Q4 guidance 36-44% YoY growth'],frothPts:['Up significantly YTD','Trailing PE elevated for hardware','Premium pricing','Storage cycles historically turn'],bull:['Every AI data centre needs massive storage','HAMR technology driving higher capacity','Hyperscaler long-term agreements','Exabyte growth 25%+ CAGR','Cantor Fitzgerald target $660'],bear:['Large YTD gain','Storage business is cyclical','AI capex slowdown hits storage first','Seagate competition','Miss triggers violent repricing'],checks:[{t:'Earnings',s:'pass',n:'Q3 reported April 30 - next Jul/Aug'},{t:'Insider',s:'neutral',n:'No significant unusual activity'},{t:'Institutional',s:'pass',n:'Broad institutional interest'},{t:'Balance sheet',s:'warn',n:'Heavy debt from past restructuring'},{t:'Revenue growth',s:'pass',n:'45.5% YoY - four consecutive beats'},{t:'Short interest',s:'warn',n:'Some shorts on cyclical thesis'},{t:'Valuation',s:'warn',n:'Elevated PE for hardware'},{t:'Macro',s:'pass',n:'AI data centre storage demand structural'}],dates:[{e:'Next earnings',w:'~Jul/Aug 2026'}],inst:'BULLISH',consensus:'BUY',target:'~$513',stop:'Live -8%',tgt:'Live +10%',posRec:5,vix:'WDC overextended. Wait for pullback.',dca:'DO NOT chase. Target pullback on consolidation.',corr:'Directly correlated with Micron - same NAND thesis.',mentor:'Western Digital - real AI-driven supercycle, 50%+ gross margins. Wait for meaningful pullback before entering.'},
-  SNDK:{name:'SanDisk Corporation',sector:'NAND Flash / AI Storage',beer:55,froth:45,risk:'MED-HIGH',score:64,verdict:'CAUTION',reason:'Most extraordinary semiconductor rally of 2026. Real Amazon/AWS relationship. Wait for pullback.',beerPts:['Q3 FY2026 revenue $5.95B - up 250% YoY','Non-GAAP EPS beat estimate by 60%','Gross margin 78.4%','Q4 guidance obliterates consensus'],frothPts:['Up 3,006% over 12 months','Most easy money already made','NAND historically most cyclical segment','Some sell ratings from analysts'],bull:['Multi-year contracted commitments with Amazon, Microsoft, Google','Datacenter revenue up 233% YoY','Gartner forecasts NAND prices rising 234% in 2026','BiCS8 technology reaching majority output','Zero debt balance sheet'],bear:['3,006% rally means enormous expectations','NAND has always been commodity','Cycles turn hard','WDC on watchlist - owning both is identical risk','Memory crunch assumed until 2028'],checks:[{t:'Earnings',s:'pass',n:'Q3 reported April 30 - next August 13'},{t:'Insider',s:'neutral',n:'No significant unusual activity'},{t:'Institutional',s:'pass',n:'Broad institutional interest'},{t:'Balance sheet',s:'pass',n:'Zero debt, strong cash, buyback authorised'},{t:'Revenue growth',s:'pass',n:'250% YoY Q3'},{t:'Short interest',s:'warn',n:'Elevated shorts on cycle peak thesis'},{t:'Valuation',s:'warn',n:'PE elevated'},{t:'Macro',s:'pass',n:'AI data centre build-out structural'}],dates:[{e:'Next earnings',w:'Aug 13 2026'}],inst:'BULLISH',consensus:'BUY',target:'~$1,399 analyst avg',stop:'Live -8%',tgt:'Live +10%',posRec:5,vix:'Market fine. Own valuation is primary risk.',dca:'DO NOT chase. Target pullback on consolidation.',corr:'Directly correlated with WDC - same NAND thesis. Choose one.',mentor:'SanDisk is compelling - multi-year Amazon/Google/Microsoft commitments, 78% gross margins. But massive YTD rally means wait for meaningful pullback.'},
-  XRP:{name:'XRP Ripple',sector:'Crypto / Payments',beer:40,froth:60,risk:'HIGH',score:52,verdict:'CAUTION',reason:'Real technology, real institutional adoption. Catalyst trade around CLARITY Act regulatory vote.',beerPts:['JPMorgan + Mastercard completed tokenized Treasury settlement on XRPL','SEC legal battle resolved - appeals dropped August 2025','Spot XRP ETFs approved Nov 2025 - $1.3B+ inflows','XRPL native lending protocol activation incoming'],frothPts:['No cash flows, no ownership rights','Ripple holds enormous XRP and sells periodically','Strong resistance zone rejected multiple times','Boom-bust history'],bull:['CLARITY Act Senate vote catalyst','JPMorgan and Mastercard using XRPL validates utility','XRP ETF inflows accelerating','Native lending protocol - DeFi capability','Quantum-resistant upgrade roadmap'],bear:['Strong resistance overhead','Ripple selling creates persistent sell pressure','No earnings, dividends or ownership rights','Regulatory clarity still incomplete','If CLARITY Act fails drops to support'],checks:[{t:'CLARITY Act vote',s:'warn',n:'Key catalyst - positive vote = buy trigger'},{t:'Insider',s:'neutral',n:'Ripple periodically releases XRP from escrow'},{t:'Institutional',s:'pass',n:'ETF inflows $1.3B+'},{t:'Balance sheet',s:'neutral',n:'No traditional balance sheet'},{t:'Adoption metrics',s:'pass',n:'JPMorgan, Mastercard, Ondo Finance using XRPL'},{t:'Short interest',s:'warn',n:'Significant shorts at resistance'},{t:'Valuation',s:'neutral',n:'No traditional valuation framework'},{t:'Macro',s:'pass',n:'Crypto positive sentiment'}],dates:[{e:'CLARITY Act vote',w:'Watch Senate Banking Committee'}],inst:'NEUTRAL',consensus:'HOLD',target:'~$2.00 bull / ~$1.27 support',stop:'Live -12%',tgt:'Live +31%',posRec:3,vix:'Crypto moves independently.',dca:'Single defined entry on catalyst, single defined exit.',corr:'Zero correlation with AI infrastructure.',mentor:'XRP is real technology - JPMorgan using your network is genuine validation. Catalyst trade only. Entry on CLARITY Act positive vote, stop at $1.27, target $1.85-$2.00. Maximum 2-3% of active pot.'},
-  AMTM:{name:'Amentum Holdings',sector:'Gov / Defence',beer:55,froth:45,risk:'MEDIUM',score:62,verdict:'GO',reason:'Solid government contractor - Q2 beat, $47.8B backlog, guidance reaffirmed.',beerPts:['$14.4B trailing revenue','Operating cash flow $543M','$47.8B backlog - 1.2x book-to-bill','70+ countries, all 7 continents'],frothPts:['Net margin 0.5% - razor thin','Short interest elevated','Government contract concentration','Not a growth story'],bull:['US defence spending elevated','Environmental remediation - large TAM','Intelligence and space contracts stable','Analyst target $34.91 - 35% upside','Q2 beat - guidance reaffirmed'],bear:['0.5% margin - contract loss hits hard','Federal budget cuts impact directly','Short interest elevated','Not a growth story'],checks:[{t:'Earnings',s:'pass',n:'Q2 beat - guidance reaffirmed'},{t:'Insider',s:'neutral',n:'No unusual activity'},{t:'Institutional',s:'neutral',n:'Short interest elevated - monitor'},{t:'Balance sheet',s:'pass',n:'Current ratio 1.42, $543M OCF'},{t:'Revenue growth',s:'pass',n:'$14.4B revenue - stable'},{t:'Short interest',s:'warn',n:'Elevated - monitor'},{t:'Valuation',s:'pass',n:'Reasonable vs peers'},{t:'Macro',s:'pass',n:'US defence spending elevated'}],dates:[{e:'Next earnings',w:'Q3 2026'}],inst:'NEUTRAL',consensus:'BUY',target:'~$34.91',stop:'Live -8%',tgt:'Live +10%',posRec:7,vix:'Fine for defensive position.',dca:'DCA 2 tranches.',corr:'Very low AI chip correlation - excellent diversifier.',mentor:'Amentum is the most defensive stock on your watchlist. Stable government revenue, Q2 beat, $47.8B backlog. Fits base portfolio as defensive anchor.'},
-  TSLA:{name:'Tesla Inc',sector:'Robotics / EV',beer:25,froth:75,risk:'HIGH',score:42,verdict:'CAUTION',reason:'Optimus froth trade only - buy on robot milestone announcements, sell at 8-10%.',beerPts:['6 global factories - real manufacturing scale','FSD revenue accelerating','Energy Megapack business very strong','1,000+ Optimus internally deployed'],frothPts:['75% froth - narrative driven','Optimus targets repeatedly missed','Elon delivery timeline track record poor','PE 80x+ on uncertain robot future'],bull:['Optimus Fremont production Jul/Aug 2026','Second Texas factory under construction','FSD commercial licensing gaining traction','Megapack energy storage accelerating'],bear:['Predicted robots - delivered few','Elon sold significant Tesla stock','EV market share under pressure','Political controversy affecting brand'],checks:[{t:'Earnings',s:'pass',n:'Q1 reported April - next July'},{t:'Insider',s:'fail',n:'Elon has sold significant Tesla stock'},{t:'Institutional',s:'neutral',n:'ARK buying, others reducing'},{t:'Balance sheet',s:'pass',n:'$29B cash'},{t:'Revenue growth',s:'warn',n:'Slowing - EV price cuts pressure margins'},{t:'Short interest',s:'warn',n:'Elevated'},{t:'Valuation',s:'fail',n:'PE 80x+ pricing in perfect Optimus'},{t:'Macro',s:'neutral',n:'EV headwinds, robotics tailwinds'}],dates:[{e:'Next earnings',w:'Jul 2026'},{e:'Optimus Fremont production',w:'Jul/Aug 2026'}],inst:'NEUTRAL',consensus:'HOLD',target:'~$315',stop:'Live -8%',tgt:'Live +10%',posRec:3,vix:'Tesla-specific risk primary concern.',dca:'Froth pot only. 2-3% max. Buy catalyst, sell target.',corr:'Unique - moves on Elon news, robot announcements.',mentor:'Tesla belongs in your froth trading pot. Buy Optimus announcement momentum, sell at 8-10%, exit before hype fades. Not a core hold.'},
-  IREN:{name:'IREN Ltd',sector:'AI Cloud Infrastructure',beer:30,froth:70,risk:'VERY HIGH',score:40,verdict:'CAUTION',reason:'Microsoft contract real but massive GPU scale-up execution risk. Max 3% of active pot.',beerPts:['Revenue up significantly YoY','$3.6B GPU financing - 95% capex covered','Microsoft AI contract real','Multiple record quarters'],frothPts:['Must scale GPUs massively by end 2026','Bitcoin heritage creates scepticism','High debt for GPU financing','Execution risk very high'],bull:['Microsoft contract validates AI cloud thesis','$3.6B financing means buildout funded','Analysts cite significant upside potential','Renewable energy aligns with hyperscalers','First mover in renewable AI cloud'],bear:['Transition weakness in recent quarter','140k GPU by end 2026 - extremely ambitious','GPU supply could derail timeline','Any Microsoft modification catastrophic','Bitcoin stigma limits institutional ownership'],checks:[{t:'Earnings',s:'pass',n:'Check current earnings calendar'},{t:'Insider',s:'neutral',n:'Management buying - positive'},{t:'Institutional',s:'warn',n:'Limited coverage'},{t:'Balance sheet',s:'warn',n:'High debt for GPU financing'},{t:'Revenue growth',s:'pass',n:'Exceptional YoY growth'},{t:'Short interest',s:'warn',n:'Elevated on execution failure thesis'},{t:'Valuation',s:'warn',n:'Premium demands flawless execution'},{t:'Macro',s:'pass',n:'AI cloud demand structural'}],dates:[{e:'Next earnings',w:'Check calendar'},{e:'GPU scale target',w:'End 2026'}],inst:'NEUTRAL',consensus:'BUY',target:'~$75',stop:'Live -8%',tgt:'Live +10%',posRec:3,vix:'IREN execution risk dominates.',dca:'Maximum 3% of active pot.',corr:'Some AI infra correlation. Primarily moves on own milestones.',mentor:'IREN has the Microsoft contract and financing but massive GPU scaling in a constrained hardware environment is the key risk. Maximum 3% of active pot.'},
-  BE:{name:'Bloom Energy',sector:'Data Centre Power',beer:35,froth:65,risk:'VERY HIGH',score:38,verdict:'NO-GO',reason:'Revolutionary technology but significantly above fair value after massive YTD run.',beerPts:['Revenue up significantly YoY','Full year guidance raised','Large backlog - years of contracted revenue','Solves data centre power bottleneck'],frothPts:['Significantly above Morningstar fair value','PE extreme forward','High price-to-sales','Convertible notes - dilution risk'],bull:['Oracle deployment validates enterprise demand','Power constraint is #1 data centre bottleneck','Revenue growth proves real acceleration','24/7 reliable power unlike solar or wind'],bear:['Significantly above fair value','Single manufacturing facility risk','Convertible notes dilute shareholders','Most gains already in price','Any stumble triggers violent repricing'],checks:[{t:'Earnings',s:'pass',n:'Check next earnings date'},{t:'Insider',s:'warn',n:'Insiders selling into strength'},{t:'Institutional',s:'neutral',n:'Mixed after large run'},{t:'Balance sheet',s:'warn',n:'Convertible notes overhang'},{t:'Revenue growth',s:'pass',n:'Strong YoY growth'},{t:'Short interest',s:'warn',n:'Elevated - sophisticated bears present'},{t:'Valuation',s:'fail',n:'Significantly above fair value'},{t:'Macro',s:'pass',n:'Data centre power constraint structural'}],dates:[{e:'Next earnings',w:'Jul 30 2026'}],inst:'NEUTRAL',consensus:'HOLD',target:'~$180',stop:'Live -8%',tgt:'Live +10%',posRec:3,vix:'BE premium is primary risk.',dca:'Maximum 2-3% active pot as momentum trade ONLY.',corr:'High beta - amplifies market moves.',mentor:'Bloom has compelling technology but significantly above fair value after massive YTD run. Momentum trade only, small size, hard stop. Never a core holding.'},
-  BMNR:{name:'BitMine Immersion',sector:'Crypto',beer:10,froth:90,risk:'EXTREME',score:18,verdict:'NO-GO',reason:'Leveraged Ethereum bet, not AI infrastructure. Extreme volatility - lottery ticket sizing only.',beerPts:['Holds Ethereum treasury','Some Bitcoin mining infrastructure','Brand in crypto mining sector'],frothPts:['Negative earnings - loss-making','Extreme volatility - massive 52-week range','90% froth - ETH price is everything','Share registrations - insider exits open'],bull:['If ETH rises significantly BMNR rises more','ETH staking yield provides income','Crypto institutional adoption increasing'],bear:['If ETH falls BMNR falls harder','Loss-making no path to profitability','Extreme downside proven by range','NOT an AI infrastructure investment'],checks:[{t:'Earnings',s:'neutral',n:'Check current schedule'},{t:'Insider',s:'warn',n:'Share resale registrations filed'},{t:'Institutional',s:'fail',n:'Minimal - retail dominated'},{t:'Balance sheet',s:'fail',n:'Loss-making mark-to-market'},{t:'Revenue',s:'fail',n:'Treasury company - not applicable'},{t:'Short interest',s:'warn',n:'Elevated bears'},{t:'Valuation',s:'fail',n:'Negative earnings - no traditional valuation'},{t:'Macro',s:'warn',n:'Crypto independent and extremely volatile'}],dates:[{e:'ETH price',w:'Daily - primary driver'}],inst:'BEARISH',consensus:'HOLD',target:'Unknown',stop:'Live -8%',tgt:'Live +10%',posRec:2,vix:'Irrelevant. Crypto volatility independent.',dca:'1-2% max. Pure ETH speculation.',corr:'Zero AI infrastructure correlation.',mentor:'BitMine is a leveraged Ethereum bet. The extreme 52-week range tells you everything. 1-2% max sizing if at all.'},
-  LEU:{name:'Centrus Energy',sector:'Nuclear HALEU',beer:50,froth:50,risk:'MED-HIGH',score:60,verdict:'CAUTION',reason:'Strategic HALEU monopoly at intersection of nuclear revival and AI power demand.',beerPts:['Only US HALEU producer - monopoly','$2.3B commercial backlog contracted','FY2025 net margin 17%','DOE strongly backing domestic nuclear'],frothPts:['PE ~72x - expensive for current earnings','Piketon expansion must execute perfectly','Russian shipment delays near-term','BWX competition coming late 2030s'],bull:['HALEU essential for all next-gen reactors','Energy security = domestic production priority','DOE loans backing first reactors','Nuclear revival accelerating','Monopoly - no domestic competitor'],bear:['72x PE requires flawless execution','Russian uranium delays','Capital intensive','Government policy continuity risk','BWX seeking enrichment licence'],checks:[{t:'Earnings',s:'neutral',n:'Check current calendar'},{t:'Insider',s:'neutral',n:'No significant unusual activity'},{t:'Institutional',s:'pass',n:'Growing nuclear theme interest'},{t:'Balance sheet',s:'pass',n:'17% net margin, manageable debt'},{t:'Revenue growth',s:'pass',n:'Growing contracted backlog'},{t:'Short interest',s:'pass',n:'Low'},{t:'Valuation',s:'warn',n:'PE 72x'},{t:'Macro',s:'pass',n:'Nuclear revival + AI power = strong tailwind'}],dates:[{e:'Piketon expansion',w:'2026 ongoing'},{e:'DOE contracts',w:'Quarterly'}],inst:'BULLISH',consensus:'BUY',target:'~$250',stop:'Live -8%',tgt:'Live +10%',posRec:7,vix:'Reasonable conditions for long-term hold.',dca:'Base portfolio. DCA 3 tranches 6-8 weeks.',corr:'Very low AI chip correlation - excellent diversifier.',mentor:'Centrus sits at the intersection of four powerful themes. Strategic HALEU monopoly is genuinely valuable. Treat as a 3-year base portfolio hold.'},
-  SOLS:{name:'Solstice Advanced Materials',sector:'Nuclear / AI / Cooling',beer:60,froth:40,risk:'MEDIUM',score:68,verdict:'GO',reason:'Unique spin-off touching nuclear, AI chips, and data centre cooling simultaneously.',beerPts:['FY2025 revenue $3.9B','Net income $237M, EBITDA margin 24.6%','Only US uranium conversion business','2026 guidance $3.9-4.1B'],frothPts:['Only 6 months as standalone','Post-spin valuation uncertainty','14% above some fair value estimates','Near-term earnings declining on spin costs'],bull:['Uranium conversion monopoly - nuclear essential','Semiconductor materials - direct AI chip exposure','Data centre cooling chemicals - third AI link','Honeywell pedigree - world class operations','Apple supply agreements'],bear:['Post-spin valuation uncertainty','Rally reduced margin of safety','Three businesses may be valued separately','Near-term earnings declining'],checks:[{t:'Earnings',s:'warn',n:'Recently reported - verify guidance'},{t:'Insider',s:'neutral',n:'Newly independent'},{t:'Institutional',s:'pass',n:'Honeywell shareholders retained'},{t:'Balance sheet',s:'pass',n:'$237M net income, 24.6% EBITDA'},{t:'Revenue growth',s:'pass',n:'Stable $3.9-4.1B guidance'},{t:'Short interest',s:'neutral',n:'Limited data - new ticker'},{t:'Valuation',s:'warn',n:'Premium after rally'},{t:'Macro',s:'pass',n:'Nuclear + AI chips + cooling - triple tailwind'}],dates:[{e:'Q1 earnings',w:'Recently reported'},{e:'Uranium contracts',w:'Ongoing'}],inst:'BULLISH',consensus:'BUY',target:'~$95',stop:'Live -8%',tgt:'Live +10%',posRec:10,vix:'Reasonable for base portfolio.',dca:'40% now, 60% on pullback.',corr:'Moderate - nuclear links to LEU, chip materials to semi names.',mentor:'Solstice is the one stock touching all three of your core themes. Pullback is the ideal entry.'},
-  MP:{name:'MP Materials',sector:'Rare Earth Materials',beer:50,froth:50,risk:'MED-HIGH',score:55,verdict:'CAUTION',reason:'Strategic rare earth monopoly with government backing - still loss-making.',beerPts:['DoD 10-year commitment, $110/kg price floor','Government purchased $400M of MP stock','Apple $500M supply agreement','Only fully integrated US rare earth producer'],frothPts:['Still loss-making','PS ratio elevated','Kazakhstan discovery could pressure pricing','Texas facility execution risk'],bull:['Every humanoid robot needs neodymium magnets','Geopolitical deglobalisation = Western demand','Government price floor removes commodity risk','Texas 10X facility targets 10x production','Apple and GM anchor customers'],bear:['Still loss-making','Elevated PS for pre-profit','Kazakhstan discovery = new supply risk','China controls 85% of processing','Texas facility execution risk'],checks:[{t:'Earnings',s:'pass',n:'Check recent results'},{t:'Insider',s:'neutral',n:'Government major shareholder'},{t:'Institutional',s:'pass',n:'Strong - strategic supply chain play'},{t:'Balance sheet',s:'warn',n:'Loss-making - needs Texas profitability'},{t:'Revenue growth',s:'pass',n:'Growing but not profitable'},{t:'Short interest',s:'warn',n:'Some shorts on execution failure'},{t:'Valuation',s:'warn',n:'Elevated PS for pre-profit miner'},{t:'Macro',s:'pass',n:'Rare earth security = national priority'}],dates:[{e:'Texas 10X milestone',w:'2026 ongoing'}],inst:'BULLISH',consensus:'BUY',target:'~$85',stop:'Live -8%',tgt:'Live +10%',posRec:5,vix:'Wait for earnings clarity.',dca:'Wait for earnings. Strong = 30% position.',corr:'Very low AI chip correlation - excellent diversifier.',mentor:'MP Materials strategically compelling - government-backed monopoly, Fortune 500 customers. Still loss-making. Let the Texas facility results speak.'},
-  TER:{name:'Teradyne Inc',sector:'Robotics Testing',beer:50,froth:50,risk:'MEDIUM',score:65,verdict:'GO',reason:'Every robot built needs testing - strong revenue growth validates the picks-and-shovels robotics thesis.',beerPts:['Q1 2026 revenue guidance up significantly YoY','AI apps driving 70%+ of Q1 revenue','$12-14B market from $9B current','Non-discretionary - every unit needs testing'],frothPts:['Cyclical semi test market','PE elevated vs historical','Humanoid volumes still small','Universal Robots transition ongoing'],bull:['Every humanoid robot needs Teradyne testing','AI semiconductor test at 70%+ growing','$12-14B market expansion','Universal Robots for collaborative robots','Consistent dividend'],bear:['Semi test market cyclical','Humanoid volumes small','Advantest, Cohu competition','AI revenue concentration risk'],checks:[{t:'Earnings',s:'pass',n:'Recently reported - next ~July'},{t:'Insider',s:'neutral',n:'No unusual activity'},{t:'Institutional',s:'pass',n:'Strong quality play'},{t:'Balance sheet',s:'pass',n:'Strong FCF, consistent dividend'},{t:'Revenue growth',s:'pass',n:'Strong YoY growth'},{t:'Short interest',s:'pass',n:'Low'},{t:'Valuation',s:'warn',n:'Premium to historical'},{t:'Macro',s:'pass',n:'Robotics capex accelerating'}],dates:[{e:'Next earnings',w:'~Jul 2026'}],inst:'BULLISH',consensus:'BUY',target:'~$105',stop:'Live -8%',tgt:'Live +10%',posRec:7,vix:'Good for quality robotics play.',dca:'Solid base candidate. DCA 2-3 tranches.',corr:'Less correlated with pure AI chips - good diversifier.',mentor:'Teradyne tests every robot and every AI chip before it ships. Strong revenue growth and AI apps at 70%+ is compelling. Overlooked picks-and-shovels play.'},
-  VRT:{name:'Vertiv Holdings',sector:'AI Infrastructure',beer:45,froth:55,risk:'MED-HIGH',score:55,verdict:'CAUTION',reason:'Data centre power and cooling king - real business but 76x trailing PE. Watch for pullbacks.',beerPts:['FY2025 revenue $10.23B - up 27.69% YoY','$15B backlog and 252% order growth','2026 EPS growth guided 42-45%','FCF guidance $2.1-2.3B'],frothPts:['Trailing PE 76x - no room for misses','Forward multiple ~49x','Beta 2.05 - corrections hit much harder','Board members selling shares'],bull:['Makes cooling and power for every AI data centre','$15B backlog provides multi-year visibility','42-45% EPS growth guidance for 2026','AI data centre build-out accelerating','Essential physical infrastructure'],bear:['76x trailing PE - extreme premium','Beta 2.05 amplifies market corrections','Any AI capex slowdown hits order book','Board members selling','Zero margin for execution error'],checks:[{t:'Earnings',s:'pass',n:'Check next earnings date'},{t:'Insider',s:'warn',n:'Board members selling shares'},{t:'Institutional',s:'pass',n:'Strong ownership'},{t:'Balance sheet',s:'pass',n:'FCF guidance $2.1-2.3B'},{t:'Revenue growth',s:'pass',n:'27.69% YoY'},{t:'Short interest',s:'warn',n:'Some elevated short interest'},{t:'Valuation',s:'warn',n:'PE 76x - demands perfect execution'},{t:'Macro',s:'pass',n:'AI data centre build-out structural'}],dates:[{e:'Next earnings',w:'Check calendar'}],inst:'BULLISH',consensus:'BUY',target:'Check analysts',stop:'Live -8%',tgt:'Live +10%',posRec:5,vix:'VRTs premium is primary risk not macro.',dca:'Good business, pricey. Wait for dips. Max 5% of active pot.',corr:'High AI infra correlation. Beta 2.05 amplifies both directions.',mentor:'Vertiv makes the physical cooling and power systems that every AI data centre needs. The business is real, the backlog substantial. At 76x trailing PE with board members selling, patience at entry is essential.'},
-  CIEN:{name:'Ciena Corp',sector:'AI Infrastructure',beer:55,froth:45,risk:'MEDIUM',score:68,verdict:'GO',reason:'Optical networking bellwether - $7B backlog and AI-driven bandwidth demand. Wait for pullback.',beerPts:['Q1 FY2026 revenue $1.43B - up 33% YoY','FCF doubled YoY to $154M','Debt fallen significantly','$7B backlog - multi-year visibility'],frothPts:['Up 108% YTD - significant move','High expectations baked in','AI infrastructure spending must continue','Hyperscaler capex slowdown hits book'],bull:['AI bandwidth demand driving optical need','$7B backlog provides years of visibility','FCF doubling confirms real cash generation','Hyperscaler cloud spending accelerating','Optical infrastructure non-discretionary'],bear:['108% YTD - much of easy money made','High expectations at current price','AI capex slows = narrative deflates','Premium vs historical ranges','Competition from Infinera and Nokia'],checks:[{t:'Earnings',s:'pass',n:'Check next earnings date'},{t:'Insider',s:'neutral',n:'No significant unusual activity'},{t:'Institutional',s:'pass',n:'Strong institutional inflows'},{t:'Balance sheet',s:'pass',n:'FCF doubled, debt falling'},{t:'Revenue growth',s:'pass',n:'33% YoY'},{t:'Short interest',s:'pass',n:'Low'},{t:'Valuation',s:'warn',n:'Premium after 108% YTD'},{t:'Macro',s:'pass',n:'AI bandwidth demand structural'}],dates:[{e:'Next earnings',w:'Check calendar'}],inst:'BULLISH',consensus:'BUY',target:'Check analysts',stop:'Live -8%',tgt:'Live +10%',posRec:7,vix:'Watch for pullback entry.',dca:'Wait for meaningful pullback before entering.',corr:'High AI infrastructure correlation.',mentor:'Ciena has one of the better beer/froth ratios - real cash flow, real backlog, genuine AI tailwind. But the 108% YTD move means patience at entry is essential.'},
-  AMTM:{name:'Amentum Holdings',sector:'Gov / Defence',beer:55,froth:45,risk:'MEDIUM',score:62,verdict:'GO',reason:'Solid government contractor - defensive base portfolio position.',beerPts:['$14.4B trailing revenue','Operating cash flow $543M','Current ratio 1.42','70+ countries, all 7 continents'],frothPts:['Net margin 0.5% - razor thin','Short interest elevated','Government contract concentration','Not a growth story'],bull:['US defence spending elevated','Environmental remediation - large TAM','Intelligence and space contracts stable','Analyst target $34.91 - 35% upside','All 7 continents - true global'],bear:['0.5% margin - contract loss hits hard','Federal budget cuts impact directly','Short interest elevated','Not a growth story'],checks:[{t:'Earnings',s:'pass',n:'Q2 beat - guidance reaffirmed'},{t:'Insider',s:'neutral',n:'No unusual activity'},{t:'Institutional',s:'neutral',n:'Short interest rising - monitor'},{t:'Balance sheet',s:'pass',n:'Current ratio 1.42, $543M OCF'},{t:'Revenue growth',s:'pass',n:'$14.4B revenue - stable'},{t:'Short interest',s:'warn',n:'Up 34% - monitor'},{t:'Valuation',s:'pass',n:'Reasonable vs peers'},{t:'Macro',s:'pass',n:'US defence spending elevated'}],dates:[{e:'Next earnings',w:'Q3 2026'},{e:'Defence budget',w:'Congressional calendar'}],inst:'NEUTRAL',consensus:'BUY',target:'~$34.91',stop:'Live -8%',tgt:'Live +10%',posRec:7,vix:'Fine for defensive position.',dca:'DCA 2 tranches.',corr:'Very low AI chip correlation - excellent diversifier.',mentor:'Amentum is the most defensive stock on your watchlist. Stable government revenue. Fits base portfolio as defensive anchor.'},
-  COHR:{name:'Coherent Corp',sector:'AI Infrastructure',beer:40,froth:60,risk:'HIGH',score:47,verdict:'CAUTION',reason:'Real photonics business but thick froth - 5 executives sold shares at $236-291 while stock is higher.',beerPts:['Data centre $1.208B - 72% of total revenue','Beat EPS estimates 4 consecutive quarters','Operating cash flow $633.6M','Gross margin expansion, debt reduction'],frothPts:['5 executives sold at $236-291','PE 279 - extreme even on restructuring','Beta 1.905 - corrections hit much harder','Up 448% over 12 months'],bull:['Optical components non-discretionary AI infra','Revenue growing - 72% data centre','4 consecutive earnings beats','AI bandwidth demand driving optical need','Gross margin expansion positive'],bear:['5 exec insiders sold at $236-291 - red flag','PE 279 alarming','Beta 1.905 - any selloff amplified','Stock up 448% - most easy money made','Analyst targets offer limited upside'],checks:[{t:'Earnings',s:'pass',n:'Next earnings ~June 2026'},{t:'Insider',s:'fail',n:'5 executives sold at $236-291'},{t:'Institutional',s:'neutral',n:'Growing but insider selling creates doubt'},{t:'Balance sheet',s:'pass',n:'Cash flow positive, debt reducing'},{t:'Revenue growth',s:'pass',n:'Data centre segment rapidly growing'},{t:'Short interest',s:'warn',n:'Elevated - noting insider selling'},{t:'Valuation',s:'fail',n:'PE 279 - extreme premium'},{t:'Macro',s:'pass',n:'AI optical demand structural'}],dates:[{e:'Next earnings',w:'~Jun 2026'}],inst:'NEUTRAL',consensus:'HOLD',target:'~$335',stop:'Live -8%',tgt:'Live +10%',posRec:3,vix:'Market fine but COHR-specific risks dominate.',dca:'Wait for pullback to $270-290 where insiders were selling.',corr:'High AI infra correlation. Beta 1.905 amplifies both directions.',mentor:'Coherent makes genuinely critical optical components for AI data centres. But five executives selling between $236-291 is data you should not dismiss. Wait for a meaningful pullback.'},
-  NBIS:{name:'Nebius Group NV',sector:'AI Cloud Infrastructure',beer:55,froth:45,risk:'MED-HIGH',score:72,verdict:'GO',reason:'Pure-play AI infrastructure with $46B contracted backlog from Meta and Microsoft. AI cloud revenue up 802% YoY.',beerPts:['AI cloud revenue surged 802% year-over-year in Q4 2025','$46B contracted backlog from Meta Platforms and Microsoft','Annualised recurring revenue $1.25B exiting 2025','Full-stack AI infrastructure - GPU clusters, cloud platforms, developer tools'],frothPts:['Currently trading ~$106 vs analyst target $266','Pre-profitability - still loss-making as it scales','Supply-constrained - execution is the only question','High beta - moves sharply on AI sentiment'],bull:['$46B backlog from Meta and Microsoft is legally binding demand','802% revenue growth - fastest growing AI infrastructure company','Full-stack platform - GPU clusters, cloud, developer tools all in one','Analyst base case $266, bull case $386','Pure-play AI infrastructure with no legacy business drag'],bear:['Loss-making - profitability timeline uncertain','Customer concentration - Meta and Microsoft are everything','Execution risk - supply-constrained environment','High valuation demands flawless delivery','Relatively unknown - limited institutional coverage'],checks:[{t:'Earnings',s:'pass',n:'Q4 2025 reported - Q1 2026 results upcoming'},{t:'Insider',s:'neutral',n:'No significant unusual activity'},{t:'Institutional',s:'pass',n:'Growing institutional interest'},{t:'Balance sheet',s:'warn',n:'Pre-profitability - scaling aggressively'},{t:'Revenue growth',s:'pass',n:'802% YoY - extraordinary'},{t:'Short interest',s:'pass',n:'Limited shorts - growth narrative intact'},{t:'Valuation',s:'warn',n:'Premium to current earnings but rapid growth justifies'},{t:'Macro',s:'pass',n:'AI infrastructure demand structural - Meta and MSFT committed'}],dates:[{e:'Next earnings',w:'Q1 2026 results upcoming'}],inst:'BULLISH',consensus:'BUY',target:'~$266 base / $386 bull',stop:'Live -8%',tgt:'Live +10%',posRec:5,vix:'High beta - size carefully. 5% max.',dca:'Starter position now. Add on any dips. Multi-year hold if thesis delivers.',corr:'Low correlation with chip stocks - cloud infrastructure play.',mentor:'Nebius is the most exciting new addition to the watchlist. $46B of legally binding backlog from Meta and Microsoft with 802% revenue growth. The analyst base case of $266 versus current $106 implies 150% upside if they execute. High conviction but size carefully given pre-profitability status.'},
-  LITE:{name:'Lumentum Holdings Inc',sector:'Optical / Photonics / AI Data Centre',beer:60,froth:40,risk:'MED-HIGH',score:74,verdict:'GO',reason:'Optical and photonic components are the new bottleneck in AI data centres. Revenue up 90% YoY. Supply demand imbalance greater than 30%.',beerPts:['Q3 FY2026 revenue $808M - up 90% year-over-year','Non-GAAP operating margin 32.2% - up 21.4 percentage points YoY','EPS grew 4.1x year-over-year to $2.37','Q4 guidance $985M revenue'],frothPts:['Up 169% in 2026 - most easy money made','Trading at ~$1,053 - very high absolute price','159x trailing PE','52-week range $71 to $1,073 - extraordinary volatility'],bull:['Supply demand imbalance greater than 30%','Component supply poised to remain tight throughout 2027','Nasdaq-100 addition May 18 - institutional buying forced','19 analysts rate Buy - zero sells','Pricing power - raising prices on components'],bear:['169% YTD - optimal entry long gone at $71','159x trailing PE - no room for execution miss','High absolute price limits retail participation','CEO says business levered to hyperscalers - concentration risk'],checks:[{t:'Earnings',s:'pass',n:'Q3 reported May 5 - next Aug 18 2026'},{t:'Insider',s:'warn',n:'Form 144 filed May 8 - some insider selling noted'},{t:'Institutional',s:'pass',n:'Nasdaq-100 addition drives forced buying May 18'},{t:'Balance sheet',s:'pass',n:'Strong cash generation, expanding margins'},{t:'Revenue growth',s:'pass',n:'90% YoY - exceptional optical supercycle'},{t:'Short interest',s:'pass',n:'Low - strong buy consensus'},{t:'Valuation',s:'warn',n:'159x trailing but 59x forward'},{t:'Macro',s:'pass',n:'AI data centre optical demand structural through 2027'}],dates:[{e:'Nasdaq-100 addition',w:'May 18 2026'},{e:'Next earnings',w:'Aug 18 2026'}],inst:'BULLISH',consensus:'BUY',target:'~$1,081 analyst avg / $1,400 bull',stop:'Live -8%',tgt:'Live +10%',posRec:5,vix:'High beta and high absolute price - size carefully.',dca:'The Nasdaq-100 addition on May 18 is an immediate catalyst. Consider entry before May 18.',corr:'Moderate - optical components correlated with COHR and AAOI but different tier.',mentor:'Lumentum is one of the most extraordinary AI infrastructure stories. Revenue up 90%, margins expanding 21 points, supply shortage through 2027, Nasdaq-100 addition. The 169% YTD gain is the only hesitation. If you want exposure to the optical AI supercycle - this is the premium name to own.'},
-  MRVL:{name:'Marvell Technology Inc',sector:'AI Custom Silicon / Networking',beer:55,froth:45,risk:'MED-HIGH',score:68,verdict:'CAUTION',reason:'Transforming into AI infrastructure leader - custom silicon for Amazon, Google, Microsoft. Up 102% YTD. Wait for consolidation.',beerPts:['Record Q4 revenue $2.22B - up 37% YoY, data centre 74% of total','Custom silicon for Amazon, Google, Microsoft - 50+ design wins','$2B Nvidia equity investment','FY2027 revenue target $11B, FY2028 $15B'],frothPts:['Up 102% YTD - at all-time highs','Stock above average analyst target of $130','85x forward PE','Insider sales $26.2M - no buying noted'],bull:['Custom silicon doubling to $1.5B FY2026','Nvidia $2B investment anchors multi-year demand','50+ custom AI design wins','Celestial AI acquisition - co-packaged optics','June 17 custom silicon investor event'],bear:['102% YTD - trading above analyst consensus','Insider selling $26.2M with no buying','85x forward PE','Customer concentration - Amazon and Google','May 27 earnings approaching'],checks:[{t:'EARNINGS MAY 27',s:'warn',n:'Q1 FY2027 earnings - wait before large position'},{t:'Insider',s:'warn',n:'$26.2M insider selling - no buying activity'},{t:'Institutional',s:'pass',n:'Strong - $2B Nvidia investment as anchor'},{t:'Balance sheet',s:'pass',n:'Strong FCF, well capitalised'},{t:'Revenue growth',s:'pass',n:'37% YoY - data centre accelerating'},{t:'Short interest',s:'pass',n:'Low - growth narrative intact'},{t:'Valuation',s:'warn',n:'85x forward PE - above analyst consensus'},{t:'Macro',s:'pass',n:'AI custom silicon demand structural'}],dates:[{e:'EARNINGS MAY 27',w:'Wait before large position'},{e:'Custom Silicon Investor Day',w:'June 17 2026'}],inst:'BULLISH',consensus:'BUY',target:'~$130 avg analyst / $170 bull',stop:'Live -8%',tgt:'Live +10%',posRec:5,vix:'High beta post-102% YTD run. Wait for May 27 earnings.',dca:'WAIT for May 27 earnings. Beat = enter. Miss = wait. June 17 investor day is longer-term catalyst.',corr:'High correlation with AVGO - both custom AI silicon. Limit combined exposure.',mentor:'Marvell is transforming into a pure-play AI infrastructure leader with genuine custom silicon wins across every major hyperscaler. The $2B Nvidia investment is the strongest possible external validation. But at 102% YTD and above analyst consensus, wait for May 27 earnings to clarify the next leg.'},
-  WIX:{name:'Wix.com Ltd',sector:'AI Web Platform / SaaS',beer:55,froth:45,risk:'MEDIUM',score:65,verdict:'GO',reason:'AI website builder with real fundamentals - 14% revenue growth, $1.9B ARR, $2B buyback. Post-earnings dip creates entry.',beerPts:['Q1 2026 revenue $541M - up 14% YoY, bookings up 15%','ARR $1.9B and growing - sticky recurring revenue','66% gross margins - software economics','$2B share buyback - management confidence'],frothPts:['Slight Q1 revenue miss vs $544M consensus','GAAP loss in Q1 - investing aggressively in AI','$1.6B share tender executed','Competition from Squarespace, WordPress intensifying'],bull:['Base44 AI app builder - fastest growing segment','$2B buyback reduces share count','14% revenue growth with 66% gross margins','Strong new user cohorts','Mid-teens growth guided for 2026'],bear:['Slight revenue miss disappointed market','GAAP loss - heavy AI investment spending','Competition from Squarespace, Wordpress, Webflow','AI-native builders could commoditise market','Growth slowing from prior years'],checks:[{t:'Earnings',s:'pass',n:'Q1 reported recently - next quarter clear'},{t:'Insider',s:'neutral',n:'No unusual activity'},{t:'Institutional',s:'pass',n:'Strong institutional ownership'},{t:'Balance sheet',s:'pass',n:'$75M free cash flow, $2B buyback'},{t:'Revenue growth',s:'pass',n:'14% YoY - consistent SaaS growth'},{t:'Short interest',s:'pass',n:'Low'},{t:'Valuation',s:'warn',n:'Premium SaaS multiple'},{t:'Macro',s:'pass',n:'AI adoption driving website builder demand'}],dates:[{e:'Next earnings',w:'~Jul/Aug 2026'}],inst:'BULLISH',consensus:'BUY',target:'Check analysts',stop:'Live -8%',tgt:'Live +10%',posRec:4,vix:'Reasonable conditions for SaaS entry.',dca:'Post-earnings dip is the entry window. DCA 2 tranches.',corr:'Low correlation with semiconductor stocks - excellent diversifier.',mentor:'Wix is a quality SaaS business with real fundamentals - $1.9B ARR, 66% gross margins, and the Base44 AI app builder as a genuine growth engine. The slight Q1 revenue miss created a pullback which is your entry point. The $2B buyback signals management believes the stock is undervalued.'},
-  QCOM:{name:'Qualcomm Inc',sector:'Edge AI / Automotive / Robotics',beer:60,froth:40,risk:'MEDIUM',score:72,verdict:'GO',reason:'Cheapest quality AI chip play at 12x forward PE. Edge AI, automotive and robotics pivot underway. June 24 Investor Day is the major re-rating catalyst.',beerPts:['Q2 FY2026 revenue $10.6B - QCT revenues $9.1B','Automotive revenues exceeded $5B annualised - record','$5.4B stock buyback H1 FY2026 - $20B new programme','Figure AI and NEURA robotics design wins'],frothPts:['Smartphone headwinds - Apple modem loss over time','Forward PE 12x cheap but growth re-rating needed','Handset weakness expected to bottom Q3 2026','Custom silicon hyperscaler deal - initial shipments December only'],bull:['12x forward PE - single cheapest quality AI chip on watchlist','Automotive $6B run rate exiting FY2026','Figure AI and NEURA multi-year robotics agreements','Hyperscaler custom silicon - first shipments December 2026','June 24 Investor Day - first formal data centre and Physical AI strategy'],bear:['Apple shifting to in-house modems over time','Smartphone market maturity limits handset growth','PE re-rating needs Investor Day to deliver credible strategy','Custom silicon December shipments - too early to size','Qualcomm seen as smartphone company - perception gap needs closing'],checks:[{t:'Earnings',s:'pass',n:'Q2 reported - next ~July 2026. Clear window.'},{t:'Insider',s:'neutral',n:'No significant unusual activity'},{t:'Institutional',s:'pass',n:'Growing AI re-rating narrative'},{t:'Balance sheet',s:'pass',n:'$20B buyback - pristine balance sheet'},{t:'Revenue growth',s:'pass',n:'Strong across automotive and AI segments'},{t:'Short interest',s:'pass',n:'Low'},{t:'Valuation',s:'pass',n:'12x forward PE - most compelling value on watchlist'},{t:'Macro',s:'pass',n:'Edge AI, automotive, robotics all structural tailwinds'}],dates:[{e:'Investor Day',w:'June 24 2026 - KEY CATALYST'},{e:'Next earnings',w:'~Jul 2026'}],inst:'BULLISH',consensus:'BUY',target:'Check analysts post June 24',stop:'Live -8%',tgt:'Live +10%',posRec:5,vix:'Reasonable conditions. June 24 Investor Day is primary trigger.',dca:'Build position before June 24. Full deployment after Investor Day if thesis confirmed.',corr:'Lower AI chip correlation - automotive and edge AI different from GPU pure plays.',mentor:'Qualcomm at 12x forward PE is the most compelling value on the entire watchlist. Every other quality AI chip trades at multiples far above this. The market sees a smartphone company. We see an edge AI, automotive and robotics company in the early stages of re-rating. The June 24 Investor Day is when that re-rating becomes public. Build your position before June 24.'},
-  TSEM:{name:'Tower Semiconductor Ltd',sector:'Speciality Foundry / Analogue',beer:55,froth:45,risk:'MEDIUM',score:63,verdict:'GO',reason:'Israeli specialty foundry making analogue, power and sensor chips - Intel partnership active, strategic value proven by failed $5.4B acquisition attempt.',beerPts:['Speciality foundry - analogue, RF, power management, sensors','Intel partnership active following failed acquisition attempt','Government CHIPS Act support for Western foundry diversification','Consistent profitable operations'],frothPts:['Smaller scale than TSMC and GlobalFoundries','Geopolitical exposure - Israeli operations carry risk','Not at leading edge - mature nodes only','Growth rate modest compared to AI pure plays'],bull:['Intel partnership provides revenue certainty and technology access','Speciality chips in every smartphone, car and IoT device','CHIPS Act manufacturing incentives benefit US-aligned foundries','Acquisition target - strategic value proven at $5.4B Intel offer','Analogue chips cannot be easily commoditised'],bear:['Geopolitical risk - Israeli operations in uncertain region','Mature node foundry - missing the leading edge AI chip boom','Modest growth rate versus peers','Intel partnership strength depends on Intel recovery'],checks:[{t:'Earnings',s:'pass',n:'Check current earnings calendar'},{t:'Insider',s:'neutral',n:'No significant unusual activity'},{t:'Institutional',s:'pass',n:'Strategic value recognised'},{t:'Balance sheet',s:'pass',n:'Profitable operations, manageable debt'},{t:'Revenue growth',s:'pass',n:'Stable and growing'},{t:'Short interest',s:'pass',n:'Low'},{t:'Valuation',s:'pass',n:'Reasonable vs peers'},{t:'Macro',s:'pass',n:'Semiconductor diversification structural tailwind'}],dates:[{e:'Next earnings',w:'Check calendar'},{e:'Intel partnership update',w:'Quarterly'}],inst:'BULLISH',consensus:'BUY',target:'Check analysts',stop:'Live -8%',tgt:'Live +10%',posRec:4,vix:'Reasonable conditions for speciality foundry entry.',dca:'DCA 2 tranches. Steady accumulation.',corr:'Low correlation with GPU pure plays - excellent diversifier.',mentor:'Tower Semiconductor is a quiet compounder - profitable, speciality focused, and strategically valuable enough that Intel tried to pay $5.4B for it. The Intel partnership gives revenue certainty. A solid base portfolio addition.'},
-  FN:{name:'Fabrinet',sector:'Optical Contract Manufacturing',beer:55,froth:45,risk:'MEDIUM',score:64,verdict:'GO',reason:'Contract manufacturer for optical and photonic components - every AI data centre optical order flows through manufacturers like Fabrinet. Picks and shovels for the optical supercycle.',beerPts:['Contract manufacturer for Lumentum, Coherent, and other optical leaders','Revenue growing strongly driven by AI data centre optical demand','Asset-light model with strong free cash flow generation','Diversified customer base'],frothPts:['Margin compression risk if optical pricing falls','Customer concentration in optical sector','Up significantly YTD on optical supercycle narrative','Dependent on continued AI capex spending'],bull:['Every optical component for AI data centres needs contract manufacturing','Lumentum and Coherent growth directly benefits Fabrinet','Asset-light model means FCF generation is strong','Diversified across multiple optical customers','Picks and shovels - benefits regardless of which optical company wins'],bear:['If optical pricing normalises margins compress','Customer concentration in the optical sector','Dependent on continued AI infrastructure spending','Capital allocation decisions less visible'],checks:[{t:'Earnings',s:'pass',n:'Check current earnings calendar'},{t:'Insider',s:'neutral',n:'No significant unusual activity'},{t:'Institutional',s:'pass',n:'Strong institutional ownership'},{t:'Balance sheet',s:'pass',n:'Strong FCF, asset-light model'},{t:'Revenue growth',s:'pass',n:'Growing strongly on optical demand'},{t:'Short interest',s:'pass',n:'Low'},{t:'Valuation',s:'warn',n:'Premium after YTD run'},{t:'Macro',s:'pass',n:'AI data centre optical demand structural through 2027'}],dates:[{e:'Next earnings',w:'Check calendar'}],inst:'BULLISH',consensus:'BUY',target:'Check analysts',stop:'Live -8%',tgt:'Live +10%',posRec:4,vix:'Reasonable conditions for contract manufacturer entry.',dca:'DCA 2 tranches. Pairs well with LITE position.',corr:'Moderate - correlated with LITE and COHR as optical sector. Size combined exposure carefully.',mentor:'Fabrinet is the quiet beneficiary of the optical AI supercycle. When Lumentum reports 90% revenue growth, that demand flows through Fabrinet. The asset-light contract manufacturing model generates strong free cash flow without the capital intensity of chip fabs.'},
-};
+// ── MAXSMITH CAPITAL RESEARCH AGENT v1.0 ────────────────
+// Phase 1: Live fundamentals + news + earnings + insider activity
+// Sources: Finnhub API + SEC EDGAR + Anthropic Claude AI
 
-function getPriceContext(ticker, d) {
-  const live = getLivePrice(ticker);
-  const ctx = {hasLive:false,priceRaw:null,pe:null,week52High:null,week52Low:null,frothPremium:d?d.froth:50,beerDiscount:d?d.beer:50,rangePosition:50,peScore:50,fearGreed:50,marginOfSafety:'UNKNOWN',valuationVerdict:'UNKNOWN',fearGreedLabel:'NEUTRAL'};
-  if (!live) return ctx;
-  ctx.hasLive = true;
-  ctx.priceRaw = live.priceRaw;
-  const peRaw = parseFloat(live.pe);
-  ctx.pe = isNaN(peRaw) ? null : peRaw;
-  if (live.week52High && live.week52High !== 'N/A') ctx.week52High = parseFloat(live.week52High.replace('$',''));
-  if (live.week52Low && live.week52Low !== 'N/A') ctx.week52Low = parseFloat(live.week52Low.replace('$',''));
-  if (ctx.week52High && ctx.week52Low && ctx.week52High > ctx.week52Low) {
-    ctx.rangePosition = Math.min(100,Math.max(0,Math.round(((ctx.priceRaw - ctx.week52Low) / (ctx.week52High - ctx.week52Low)) * 100)));
+const https = require('https');
+
+function httpsGet(url, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      headers: { 'User-Agent': 'MaxSmithCapital/1.0 (max@zerolondon.uk)', ...headers },
+      timeout: 8000
+    };
+    https.get(url, options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try { resolve(JSON.parse(data)); }
+        catch(e) { resolve(null); }
+      });
+    }).on('error', () => resolve(null)).on('timeout', () => resolve(null));
+  });
+}
+
+function getToday() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function getDateDaysAgo(days) {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString().split('T')[0];
+}
+
+function formatMarketCap(mc) {
+  if (!mc) return 'N/A';
+  if (mc >= 1000) return '$' + (mc / 1000).toFixed(2) + 'T';
+  return '$' + mc.toFixed(1) + 'B';
+}
+
+async function getFinnhubData(ticker, apiKey) {
+  const base = 'https://finnhub.io/api/v1';
+  const t = '&token=' + apiKey;
+  const from = getDateDaysAgo(7);
+  const to = getToday();
+
+  const [quote, profile, metrics, news, sentiment, insider, earnings, reco] = await Promise.all([
+    httpsGet(base + '/quote?symbol=' + ticker + '&token=' + apiKey),
+    httpsGet(base + '/stock/profile2?symbol=' + ticker + t),
+    httpsGet(base + '/stock/metric?symbol=' + ticker + '&metric=all' + t),
+    httpsGet(base + '/company-news?symbol=' + ticker + '&from=' + from + '&to=' + to + t),
+    httpsGet(base + '/news-sentiment?symbol=' + ticker + t),
+    httpsGet(base + '/stock/insider-transactions?symbol=' + ticker + t),
+    httpsGet(base + '/calendar/earnings?symbol=' + ticker + t),
+    httpsGet(base + '/stock/recommendation?symbol=' + ticker + t)
+  ]);
+
+  return { quote, profile, metrics, news: news || [], sentiment, insider, earnings, reco };
+}
+
+async function getSecData(ticker, email) {
+  try {
+    const url = 'https://efts.sec.gov/LATEST/search-index?q=%22' + ticker + '%22&forms=4&dateRange=custom&startdt=' + getDateDaysAgo(30) + '&enddt=' + getToday();
+    const data = await httpsGet(url, { 'User-Agent': 'MaxSmithCapital ' + email });
+    return data?.hits?.hits?.slice(0, 5) || [];
+  } catch(e) { return []; }
+}
+
+async function claudeSynthesis(ticker, d, anthropicKey) {
+  const q = d.quote;
+  const m = d.metrics?.metric || {};
+  const p = d.profile || {};
+  const r = d.reco?.[0] || {};
+  const s = d.sentiment?.sentiment || {};
+  const news = d.news?.slice(0, 3).map(n => '- ' + n.headline).join('\n') || 'No recent news';
+  const nextEarnings = d.earnings?.earningsCalendar?.[0]?.date || 'Check calendar';
+  const insiderCount = d.secInsider?.length || 0;
+
+  const prompt = `You are Claude, AI trading mentor for MaxSmith Capital, a disciplined UK private investor with £50,000 deployed.
+
+Analyse this live data for ${ticker} and produce a structured research brief.
+
+PRICE DATA:
+- Current Price: ${q?.c ? '$' + q.c.toFixed(2) : 'N/A'}
+- Today Change: ${q?.dp ? q.dp.toFixed(2) + '%' : 'N/A'}
+- Market Cap: ${formatMarketCap(p.marketCapitalization)}
+- 52W High: ${m['52WeekHigh'] ? '$' + m['52WeekHigh'] : 'N/A'}
+- 52W Low: ${m['52WeekLow'] ? '$' + m['52WeekLow'] : 'N/A'}
+- P/E Ratio: ${m.peNormalizedAnnual?.toFixed(1) || 'N/A'}
+
+FUNDAMENTALS:
+- Revenue Growth YoY: ${m.revenueGrowthTTMYoy ? (m.revenueGrowthTTMYoy * 100).toFixed(1) + '%' : 'N/A'}
+- Gross Margin: ${m.grossMarginTTM?.toFixed(1) + '%' || 'N/A'}
+- FCF Margin: ${m.fcfMarginTTM?.toFixed(1) + '%' || 'N/A'}
+- Return on Equity: ${m.roeTTM?.toFixed(1) + '%' || 'N/A'}
+- Net Debt/Equity: ${m.netDebtToTotalEquityQuarterly?.toFixed(2) || 'N/A'}
+
+ANALYST CONSENSUS:
+- Strong Buy: ${r.strongBuy || 0} | Buy: ${r.buy || 0} | Hold: ${r.hold || 0} | Sell: ${r.sell || 0}
+
+SENTIMENT:
+- Bullish: ${s.bullishPercent ? (s.bullishPercent * 100).toFixed(0) + '%' : 'N/A'}
+- Bearish: ${s.bearishPercent ? (s.bearishPercent * 100).toFixed(0) + '%' : 'N/A'}
+
+RECENT HEADLINES:
+${news}
+
+INSIDER ACTIVITY:
+- SEC Form 4 filings in last 30 days: ${insiderCount}
+
+EARNINGS:
+- Next earnings date: ${nextEarnings}
+
+Our framework: Beer and Froth analysis, 7-8% stop losses on active trades, no stop on blue chips (thesis-based exit only), max 10% per position, 24hr rule on impulse buys. Portfolio focused on AI infrastructure, nuclear energy, robotics, optical networking.
+
+Produce this exact structure:
+
+SIGNAL: [ONE OF: STRONG BUY / BUY / CAUTION / AVOID / SELL]
+
+PRICE SNAPSHOT: Current price context, momentum, 52-week range position.
+
+FUNDAMENTAL HEALTH: Revenue growth, margins, balance sheet strength.
+
+SENTIMENT AND NEWS: Analyst consensus, news sentiment, material headlines.
+
+INSIDER ACTIVITY: Recent Form 4 filings and what they signal.
+
+EARNINGS RISK: Next date and what to watch for.
+
+BEER AND FROTH NOTE: Estimated beer score and froth premium at current price. Is the margin of safety adequate?
+
+MENTOR VERDICT: Direct recommendation. Buy now or wait? Entry conditions if applicable. Stop loss level. Key risk to monitor.
+
+Be concise, honest and direct. No platitudes.`;
+
+  const body = JSON.stringify({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 1000,
+    messages: [{ role: 'user', content: prompt }]
+  });
+
+  return new Promise((resolve) => {
+    const options = {
+      hostname: 'api.anthropic.com',
+      path: '/v1/messages',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': anthropicKey,
+        'anthropic-version': '2023-06-01',
+        'Content-Length': Buffer.byteLength(body)
+      },
+      timeout: 30000
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          resolve(parsed.content?.[0]?.text || 'Analysis unavailable - check API key');
+        } catch(e) { resolve('Parse error - ' + data.substring(0, 100)); }
+      });
+    });
+    req.on('error', () => resolve('Connection error to Claude API'));
+    req.on('timeout', () => resolve('Claude API timeout - try again'));
+    req.write(body);
+    req.end();
+  });
+}
+
+exports.handler = async (event) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache'
+  };
+
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' };
   }
-  if (ctx.pe !== null) {
-    if (d.risk === 'MEDIUM' || d.risk === 'LOW') {
-      if (ctx.pe < 15) ctx.peScore = 90; else if (ctx.pe < 20) ctx.peScore = 80; else if (ctx.pe < 30) ctx.peScore = 65; else if (ctx.pe < 40) ctx.peScore = 50; else if (ctx.pe < 55) ctx.peScore = 30; else ctx.peScore = 15;
+
+  const FINNHUB = process.env.FINNHUB;
+  const ANTHROPIC = process.env.ANTHROPIC_KEY;
+  const SEC_EMAIL = process.env.SEC_EMAIL || 'max@zerolondon.uk';
+
+  if (!FINNHUB) {
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'FINNHUB API key not configured in Netlify' }) };
+  }
+
+  const ticker = (event.queryStringParameters?.ticker || '').toUpperCase().trim();
+  if (!ticker) {
+    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Ticker required. Use ?ticker=NVDA' }) };
+  }
+
+  try {
+    console.log('Agent analysing: ' + ticker);
+
+    const [finnhub, sec] = await Promise.all([
+      getFinnhubData(ticker, FINNHUB),
+      getSecData(ticker, SEC_EMAIL)
+    ]);
+
+    const data = { ...finnhub, secInsider: sec };
+
+    let analysis = null;
+    if (ANTHROPIC) {
+      analysis = await claudeSynthesis(ticker, data, ANTHROPIC);
     } else {
-      if (ctx.pe < 20) ctx.peScore = 85; else if (ctx.pe < 35) ctx.peScore = 70; else if (ctx.pe < 60) ctx.peScore = 50; else if (ctx.pe < 100) ctx.peScore = 30; else ctx.peScore = 15;
+      analysis = 'SIGNAL: PENDING\n\nMENTOR VERDICT: Add ANTHROPIC_KEY to Netlify Environment Variables to enable AI synthesis. Raw data is available above.';
     }
-  }
-  ctx.fearGreed = Math.min(100,Math.max(0,Math.round((ctx.rangePosition*0.4)+(d.froth*0.4)+((ctx.pe!==null?Math.min(100,(ctx.pe/60)*100):50)*0.2))));
-  if (ctx.fearGreed <= 20) ctx.fearGreedLabel = 'EXTREME FEAR';
-  else if (ctx.fearGreed <= 35) ctx.fearGreedLabel = 'FEAR';
-  else if (ctx.fearGreed <= 50) ctx.fearGreedLabel = 'MILD FEAR';
-  else if (ctx.fearGreed <= 65) ctx.fearGreedLabel = 'MILD GREED';
-  else if (ctx.fearGreed <= 80) ctx.fearGreedLabel = 'GREED';
-  else ctx.fearGreedLabel = 'EXTREME GREED';
-  const vs = (d.beer*0.6)+((100-ctx.rangePosition)*0.2)+(ctx.peScore*0.2);
-  if (vs >= 70) { ctx.marginOfSafety='STRONG'; ctx.valuationVerdict='UNDERVALUED'; }
-  else if (vs >= 55) { ctx.marginOfSafety='ADEQUATE'; ctx.valuationVerdict='FAIR VALUE'; }
-  else if (vs >= 40) { ctx.marginOfSafety='THIN'; ctx.valuationVerdict='SLIGHTLY OVERVALUED'; }
-  else { ctx.marginOfSafety='NONE'; ctx.valuationVerdict='OVERVALUED'; }
-  return ctx;
-}
 
-function getCombinedSignal(vv, fgl) {
-  const isUnder=vv==='UNDERVALUED', isFair=vv==='FAIR VALUE', isOver=vv==='SLIGHTLY OVERVALUED'||vv==='OVERVALUED';
-  const isFear=fgl==='EXTREME FEAR'||fgl==='FEAR'||fgl==='MILD FEAR', isNeutral=fgl==='MILD GREED', isGreed=fgl==='GREED'||fgl==='EXTREME GREED';
-  if (isUnder&&isFear) return {signal:'STRONG BUY',color:'#3d9e6e',desc:'Undervalued + Market Fear = Maximum conviction entry. Be greedy when others are fearful.'};
-  if (isUnder&&isNeutral) return {signal:'BUY',color:'#6ba83d',desc:'Undervalued with neutral sentiment. Good entry with disciplined position sizing.'};
-  if (isUnder&&isGreed) return {signal:'BUY CAREFULLY',color:'#a8c03d',desc:'Undervalued but sentiment is greedy. Value is there but wait for fear to return for best entry.'};
-  if (isFair&&isFear) return {signal:'BUY',color:'#6ba83d',desc:'Fair value with market fear creating entry opportunity. Good risk/reward at current price.'};
-  if (isFair&&isNeutral) return {signal:'HOLD / WATCH',color:'#c97d30',desc:'Fairly priced with neutral sentiment. No urgency either way. Wait for better entry.'};
-  if (isFair&&isGreed) return {signal:'CAUTION',color:'#c97d30',desc:'Fair value but greed elevated. Risk/reward not compelling. Wait for pullback.'};
-  if (isOver&&isFear) return {signal:'WATCH',color:'#c96030',desc:'Overvalued but fear present. Could correct to fair value. Do not buy yet.'};
-  if (isOver&&isNeutral) return {signal:'AVOID',color:'#c94a4a',desc:'Overvalued with no fear cushion. Poor risk/reward. Wait for significant correction.'};
-  if (isOver&&isGreed) return {signal:'SELL / AVOID',color:'#c94a4a',desc:'Overvalued + Extreme greed. This is where crashes start. Professionals are distributing.'};
-  return {signal:'NEUTRAL',color:'#6b7585',desc:'Insufficient data for combined signal.'};
-}
+    const q = data.quote;
+    const m = data.metrics?.metric || {};
+    const r = data.reco?.[0] || {};
 
-const PHILOSOPHERS = {
-  graham:{name:'Benjamin Graham',role:'Value Investing',color:'#c8973e',quote:'The margin of safety is the central concept of investment.',question:'Is this trading below intrinsic value with an adequate margin of safety?',
-    score:function(d,px){
-      if(!d)return{score:50,verdict:'NEUTRAL',reasoning:'Insufficient data.'};
-      let s=50,p=[];
-      if(d.beer>=65){s+=15;p.push('Strong intrinsic value - beer '+d.beer+'%');}else if(d.beer>=50){s+=7;p.push('Moderate intrinsic value - beer '+d.beer+'%');}else{s-=10;p.push('Weak intrinsic value - beer '+d.beer+'% - paying for narrative');}
-      if(px&&px.hasLive){
-        if(px.marginOfSafety==='STRONG'){s+=25;p.push('STRONG margin of safety - price significantly below intrinsic value. Graham would approve entry now.');}
-        else if(px.marginOfSafety==='ADEQUATE'){s+=10;p.push('Adequate margin of safety - price near fair value. Acceptable entry with discipline.');}
-        else if(px.marginOfSafety==='THIN'){s-=15;p.push('THIN margin of safety - price above fair value. Graham demands patience for a better price.');}
-        else if(px.marginOfSafety==='NONE'){s-=30;p.push('NO margin of safety - significantly overvalued. Graham would not buy at this price regardless of business quality.');}
-        if(px.rangePosition>=90){s-=10;p.push('Trading near 52-week high - Graham never chased. He waited for fear to create opportunity.');}
-        else if(px.rangePosition<=25){s+=10;p.push('Trading near 52-week low - exactly where Graham looked. Fear has created a potential margin of safety.');}
-        if(px.fearGreedLabel==='EXTREME FEAR'||px.fearGreedLabel==='FEAR'){s+=10;p.push('Market fear present - Mr Market is offering a discount. This is the entry zone.');}
-        else if(px.fearGreedLabel==='EXTREME GREED'){s-=15;p.push('Extreme greed - Mr Market is euphoric. Graham would close his book and wait.');}
-      }else{
-        if(d.froth<=35){s+=15;p.push('Low froth '+d.froth+'% suggests reasonable margin of safety.');}
-        else if(d.froth>=60){s-=15;p.push('High froth '+d.froth+'% - insufficient margin of safety.');}
-      }
-      const b=d.checks?.find(c=>c.t.toLowerCase().includes('balance'));
-      if(b?.s==='pass'){s+=8;p.push('Balance sheet strong - Graham demands financial fortress.');}
-      else if(b?.s==='fail'){s-=12;p.push('Balance sheet concern - Graham would not invest here.');}
-      s=Math.min(95,Math.max(5,s));
-      return{score:s,verdict:s>=70?'BUY':s>=50?'HOLD':'AVOID',reasoning:p.join('. ')};
-    }
-  },
-  buffett:{name:'Warren Buffett',role:'Quality at Fair Price',color:'#3d7ea6',quote:'Price is what you pay. Value is what you get.',question:'Is this a wonderful business at a fair price?',
-    score:function(d,px){
-      if(!d)return{score:50,verdict:'NEUTRAL',reasoning:'Insufficient data.'};
-      let s=50,p=[];
-      if(d.beer>=60&&(d.risk==='MEDIUM'||d.risk==='LOW')){s+=20;p.push('Wonderful business - high beer score with manageable risk. Moat likely present.');}
-      else if(d.beer>=55){s+=10;p.push('Good business - beer '+d.beer+'% suggests real fundamental value.');}
-      else{s-=10;p.push('Business quality insufficient - Buffett only buys wonderful companies.');}
-      if(px&&px.hasLive){
-        if(px.pe!==null){
-          if(px.pe<15){s+=20;p.push('PE '+px.pe.toFixed(1)+'x - Buffett territory. Paying a genuinely fair price.');}
-          else if(px.pe<25){s+=12;p.push('PE '+px.pe.toFixed(1)+'x - acceptable for quality.');}
-          else if(px.pe<40){p.push('PE '+px.pe.toFixed(1)+'x - elevated but possibly justified if growth is exceptional.');}
-          else if(px.pe<60){s-=15;p.push('PE '+px.pe.toFixed(1)+'x - Buffett would struggle to justify this price.');}
-          else{s-=25;p.push('PE '+px.pe.toFixed(1)+'x - Buffett would not pay this price. Even the best business is a bad investment at the wrong price.');}
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        ticker,
+        timestamp: new Date().toISOString(),
+        price: q?.c ? '$' + q.c.toFixed(2) : null,
+        priceRaw: q?.c || null,
+        changePercent: q?.dp?.toFixed(2) || null,
+        marketCap: data.profile?.marketCapitalization ? formatMarketCap(data.profile.marketCapitalization) : null,
+        analysis,
+        rawData: {
+          pe: m.peNormalizedAnnual || null,
+          revenueGrowth: m.revenueGrowthTTMYoy || null,
+          grossMargin: m.grossMarginTTM || null,
+          fcfMargin: m.fcfMarginTTM || null,
+          week52High: m['52WeekHigh'] || null,
+          week52Low: m['52WeekLow'] || null,
+          recommendation: { strongBuy: r.strongBuy || 0, buy: r.buy || 0, hold: r.hold || 0, sell: r.sell || 0 },
+          nextEarnings: data.earnings?.earningsCalendar?.[0]?.date || null,
+          sentiment: data.sentiment?.sentiment || null,
+          newsCount: data.news?.length || 0,
+          insiderFilings: sec.length
         }
-        if(px.valuationVerdict==='UNDERVALUED'){s+=15;p.push('Price below intrinsic value - rare opportunity. Buffett moves decisively when price and quality align.');}
-        else if(px.valuationVerdict==='OVERVALUED'){s-=20;p.push('Price above intrinsic value - Buffett would wait. He has sat on cash for years waiting for the right price.');}
-        if(px.fearGreedLabel==='EXTREME FEAR'||px.fearGreedLabel==='FEAR'){s+=12;p.push('Market fearful - be greedy when others are fearful. This is Buffetts entry signal.');}
-        else if(px.fearGreedLabel==='EXTREME GREED'){s-=12;p.push('Market greedy - be fearful when others are greedy. Buffett raises cash at these moments.');}
-      }else{
-        if(d.froth<=40){s+=10;p.push('Low froth - price appears reasonable.');}
-        else if(d.froth>=65){s-=15;p.push('High froth - Buffett would not pay this premium.');}
-      }
-      const i=d.checks?.find(c=>c.t.toLowerCase().includes('insider'));
-      if(i?.s==='fail'){s-=15;p.push('Insider selling - management does not believe in the price. Red flag for Buffett.');}
-      else if(i?.s==='pass'){s+=5;p.push('Clean insider activity - management confidence intact.');}
-      s=Math.min(95,Math.max(5,s));
-      return{score:s,verdict:s>=70?'BUY':s>=50?'HOLD':'AVOID',reasoning:p.join('. ')};
-    }
-  },
-  lynch:{name:'Peter Lynch',role:'Growth at Reasonable Price',color:'#3d9e6e',quote:'Know what you own and know why you own it.',question:'Is the growth story intact and am I paying a reasonable price for that growth?',
-    score:function(d,px){
-      if(!d)return{score:50,verdict:'NEUTRAL',reasoning:'Insufficient data.'};
-      let s=50,p=[];
-      const r=d.checks?.find(c=>c.t.toLowerCase().includes('revenue'));
-      if(r?.s==='pass'){s+=18;p.push('Revenue growth confirmed - Lynch built his fortune finding growing businesses early.');}
-      else{s-=10;p.push('Revenue growth unclear - Lynch demands clear evidence of expansion.');}
-      if(d.sector&&(d.sector.includes('AI')||d.sector.includes('Robot')||d.sector.includes('Nuclear')||d.sector.includes('Storage')||d.sector.includes('Optical'))){s+=12;p.push('Structural growth theme - Lynch invested in what he could see growing in everyday life.');}
-      if(px&&px.hasLive&&px.pe!==null){
-        const ig=d.beer>=60?30:d.beer>=50?20:d.beer>=40?10:5;
-        const peg=px.pe/ig;
-        if(peg<0.75){s+=22;p.push('PEG ratio ~'+peg.toFixed(2)+' - exceptional. Paying less than growth rate.');}
-        else if(peg<1.0){s+=15;p.push('PEG ratio ~'+peg.toFixed(2)+' - attractive. Growth at a reasonable price.');}
-        else if(peg<1.5){s+=5;p.push('PEG ratio ~'+peg.toFixed(2)+' - acceptable. Modest premium for growth.');}
-        else if(peg<2.5){s-=10;p.push('PEG ratio ~'+peg.toFixed(2)+' - stretched. Paying too much for the growth story.');}
-        else{s-=22;p.push('PEG ratio ~'+peg.toFixed(2)+' - Lynch would avoid. Paying far more than the growth justifies.');}
-        if(px.rangePosition>=85){s-=10;p.push('Near 52-week high - Lynch never chased. He waited for the market to get bored or scared.');}
-        else if(px.rangePosition<=30){s+=8;p.push('Near 52-week low - Lynch would investigate whether fear has created an opportunity.');}
-      }
-      if(d.risk==='VERY HIGH'||d.risk==='EXTREME'){s-=18;p.push('Risk too high - Lynch preferred businesses he could explain simply.');}
-      s=Math.min(95,Math.max(5,s));
-      return{score:s,verdict:s>=70?'BUY':s>=50?'HOLD':'AVOID',reasoning:p.join('. ')};
-    }
-  },
-  fisher:{name:'Philip Fisher',role:'Qualitative Analysis - Management',color:'#c97d30',quote:'The stock market is filled with people who know the price of everything but the value of nothing.',question:'Is management credible and are insiders putting their own money where their mouth is?',
-    score:function(d,px){
-      if(!d)return{score:50,verdict:'NEUTRAL',reasoning:'Insufficient data.'};
-      let s=50,p=[];
-      const i=d.checks?.find(c=>c.t.toLowerCase().includes('insider'));
-      if(i?.s==='fail'){s-=28;p.push('CRITICAL: Insiders selling at current prices. Management does not believe the stock is cheap here.');}
-      else if(i?.s==='warn'){s-=8;p.push('Insider activity warrants monitoring - some selling noted at current price levels.');}
-      else if(i?.s==='pass'){s+=22;p.push('Clean insider activity - no selling at current prices. Management comfortable with current valuation.');}
-      if(px&&px.hasLive){
-        if(px.rangePosition>=80&&i?.s==='pass'){s+=10;p.push('Insiders NOT selling near 52-week high - exceptional signal. Management believes more upside remains.');}
-        if(px.rangePosition>=70&&i?.s==='fail'){s-=10;p.push('Insiders selling near 52-week high - management distributing at peak.');}
-        if(px.valuationVerdict==='OVERVALUED'){s-=10;p.push('Current price above intrinsic value - Fisher would require insider buying to justify entry at premium prices.');}
-      }
-      if(d.inst==='BULLISH'){s+=12;p.push('Institutional consensus bullish - sophisticated long-term investors agree with the thesis.');}
-      else if(d.inst==='BEARISH'){s-=10;p.push('Institutional sentiment bearish - smart money cautious at current price.');}
-      const b=d.checks?.find(c=>c.t.toLowerCase().includes('balance'));
-      if(b?.s==='pass'){s+=8;p.push('Balance sheet strong - great management always maintains financial strength.');}
-      s=Math.min(95,Math.max(5,s));
-      return{score:s,verdict:s>=70?'BUY':s>=50?'HOLD':'AVOID',reasoning:p.join('. ')};
-    }
-  },
-  simons:{name:'Jim Simons',role:'Systematic and Rules-Based',color:'#7a4aaa',quote:'We override our emotions with our models. That is the whole point.',question:'Does this trade have a defined entry, exit and size - and is the risk/reward mathematically sound?',
-    score:function(d,px){
-      if(!d)return{score:50,verdict:'NEUTRAL',reasoning:'Insufficient data.'};
-      let s=50,p=[];
-      const e=d.checks?.find(c=>c.t.toLowerCase().includes('earn'));
-      if(e?.s==='fail'){s-=30;p.push('CRITICAL: Active earnings risk. Simons models never held through unpredictable binary events. Stand down until after results.');}
-      else if(e?.s==='pass'){s+=12;p.push('No imminent earnings risk - systematic entry possible without binary event exposure.');}
-      if(px&&px.hasLive){
-        if(px.rangePosition>=90){s-=18;p.push('At 90th percentile of 52-week range - statistical mean reversion risk is high. Elevated entry risk.');}
-        else if(px.rangePosition>=75){s-=8;p.push('Upper range of 52-week band - momentum positive but mean reversion risk increasing.');}
-        else if(px.rangePosition<=25){s+=15;p.push('Lower range of 52-week band - statistical models favour entry. Mean reversion potential to upside.');}
-        else if(px.rangePosition<=40){s+=8;p.push('Below midpoint of 52-week range - entry has statistical edge on mean reversion basis.');}
-        if(px.fearGreed>=80){s-=15;p.push('Extreme greed reading '+px.fearGreed+'/100 - Simons models reduce exposure when sentiment reaches extremes.');}
-        else if(px.fearGreed<=25){s+=15;p.push('Extreme fear reading '+px.fearGreed+'/100 - Simons models increase exposure at negative sentiment extremes.');}
-        if(d.stop&&d.stop!=='-'){s+=12;p.push('Stop loss defined - Simons insisted every position have a mathematical exit before entry.');}
-      }else{
-        if(d.stop&&d.stop!=='-'){s+=15;p.push('Stop loss defined - systematic exit defined.');}
-      }
-      const sh=d.checks?.find(c=>c.t.toLowerCase().includes('short'));
-      if(sh?.s==='warn'){s-=5;p.push('Elevated short interest - models would track squeeze potential and downside risk.');}
-      if(d.risk==='VERY HIGH'||d.risk==='EXTREME'){s-=15;p.push('Excessive risk level - Simons required extraordinary statistical evidence for extreme risk positions.');}
-      s=Math.min(95,Math.max(5,s));
-      return{score:s,verdict:s>=70?'EXECUTE':s>=50?'WAIT':'STAND DOWN',reasoning:p.join('. ')};
-    }
-  },
-  dalio:{name:'Ray Dalio',role:'Macro and All-Weather Portfolio',color:'#2d7d46',quote:'Diversifying well is the most important thing you need to do in order to invest well.',question:'Does this fit the macro environment and is the portfolio balanced for all weather conditions?',
-    score:function(d,px){
-      if(!d)return{score:50,verdict:'NEUTRAL',reasoning:'Insufficient data.'};
-      let s=50,p=[];
-      if(d.corr&&d.corr.toLowerCase().includes('correlated')){s-=15;p.push('Correlation risk - adding this position concentrates risk rather than diversifying it.');}
-      else{s+=8;p.push('Acceptable correlation - genuine diversification benefit to portfolio.');}
-      const m=d.checks?.find(c=>c.t.toLowerCase().includes('macro'));
-      if(m?.s==='pass'){s+=18;p.push('Macro environment supportive - structural AI, nuclear and energy themes intact.');}
-      else if(m?.s==='warn'){s-=10;p.push('Macro headwinds present - Dalio would reduce position size.');}
-      if(px&&px.hasLive){
-        if(px.fearGreed>=75){s-=15;p.push('Greed elevated at '+px.fearGreed+'/100 - Dalio would reduce risk exposure. All-weather portfolios need cushion not euphoria at entry.');}
-        else if(px.fearGreed<=30){s+=15;p.push('Fear reading '+px.fearGreed+'/100 - Dalio increases allocation when fear creates margin of safety.');}
-        if(px.rangePosition>=85){s-=10;p.push('Near 52-week high - limited cushion if macro conditions deteriorate. Dalio demands downside protection at entry.');}
-        if(px.valuationVerdict==='OVERVALUED'){s-=12;p.push('Overvalued entry reduces portfolio resilience - any macro shock hits harder when you have paid too much.');}
-        else if(px.valuationVerdict==='UNDERVALUED'){s+=12;p.push('Undervalued entry creates portfolio cushion - macro shocks are absorbed by the margin of safety.');}
-      }
-      if(d.posRec<=5){s+=8;p.push('Conservative position sizing - Dalio radical diversification principle respected.');}
-      else if(d.posRec>=12){s-=10;p.push('Position size elevated - Dalio would cap this to maintain genuine diversification.');}
-      s=Math.min(95,Math.max(5,s));
-      return{score:s,verdict:s>=70?'ALLOCATE':s>=50?'SIZE SMALL':'DIVERSIFY FIRST',reasoning:p.join('. ')};
-    }
-  },
-  kahneman:{name:'Daniel Kahneman',role:'Behavioural Economics - Fear and Greed',color:'#c94a4a',quote:'Nothing in life is as important as you think it is while you are thinking about it.',question:'Is fear or greed driving this decision - and have I genuinely confronted what could go wrong?',
-    score:function(d,px){
-      if(!d)return{score:50,verdict:'NEUTRAL',reasoning:'Insufficient data.'};
-      let s=50,p=[];
-      if(d.bear&&d.bear.length>=4){s+=12;p.push('Full bear case documented - Kahneman demands we confront reasons we might be wrong before acting.');}
-      if(px&&px.hasLive){
-        if(px.fearGreed>=80){s-=28;p.push('EXTREME GREED at '+px.fearGreed+'/100 - System 1 danger zone. The excitement of recent gains is almost certainly distorting your judgment. Apply the 24-hour rule.');}
-        else if(px.fearGreed>=65){s-=15;p.push('Greed reading '+px.fearGreed+'/100 - moderate System 1 bias present. Slow down and interrogate whether the price still reflects value.');}
-        else if(px.fearGreed<=20){s+=20;p.push('EXTREME FEAR at '+px.fearGreed+'/100 - System 2 opportunity. Everyone is scared. Your instinct says avoid. That instinct is exactly what Kahneman says to override with deliberate analysis.');}
-        else if(px.fearGreed<=35){s+=12;p.push('Fear reading '+px.fearGreed+'/100 - mild pessimism creating clarity. System 2 thinking is easier when the narrative is not exciting.');}
-        if(px.rangePosition>=90){s-=20;p.push('Near 52-week high - maximum FOMO risk. The anchoring bias makes recent high prices feel normal. They are not.');}
-        else if(px.rangePosition<=20){s+=15;p.push('Near 52-week low - loss aversion making you hesitate. This is exactly when System 1 says avoid. System 2 analysis is required.');}
-        if(px.valuationVerdict==='OVERVALUED'&&px.fearGreed>=65){s-=15;p.push('Overvalued AND greedy - classic narrative fallacy trap. The story is compelling, the price is wrong.');}
-      }else{
-        if(d.froth>=65){s-=20;p.push('High froth '+d.froth+'% - narrative fallacy risk.');}
-        else if(d.froth<=40){s+=15;p.push('Low froth - decision grounded in fundamentals not narrative.');}
-      }
-      const e=d.checks?.find(c=>c.t.toLowerCase().includes('earn'));
-      if(e?.s==='fail'){s-=18;p.push('Earnings approaching - anticipated events impair System 2 reasoning. Apply the 48-hour rule.');}
-      s=Math.min(95,Math.max(5,s));
-      return{score:s,verdict:s>=70?'SYSTEM 2 CLEAR':s>=50?'PAUSE & REFLECT':'SYSTEM 1 WARNING',reasoning:p.join('. ')};
-    }
+      })
+    };
+
+  } catch(e) {
+    console.error('Agent error:', e.message);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: e.message, ticker })
+    };
   }
 };
-
-const commitState={1:false,2:false,3:false};
-function toggleCommit(n){
-  commitState[n]=!commitState[n];
-  const el=document.getElementById('c'+n);
-  if(commitState[n]){el.textContent='ok';el.classList.add('checked');}
-  else{el.textContent='x';el.classList.remove('checked');}
-  const all=commitState[1]&&commitState[2]&&commitState[3];
-  const st=document.getElementById('commitStatus');
-  if(st){if(all){st.textContent='All commitments confirmed. You may proceed.';st.style.color='var(--green)';}else{st.textContent='Tick all three commitments before trading.';st.style.color='var(--muted2)';}}
-}
-
-let liveData={};
-function getLivePrice(t){return liveData[t]||null;}
-function getChangeClass(p){const n=parseFloat(p);return n>0?'up':n<0?'down':'flat';}
-function hasEarningsWarning(t){const d=DB[t];if(!d)return false;return d.checks?.some(c=>c.t.includes('EARNINGS'));}
-
-async function fetchMarketData(){
-  try{
-    const r=await fetch('/.netlify/functions/marketdata');
-    if(!r.ok)return;
-    const data=await r.json();
-    liveData=data.quotes||{};
-    if(data.vix){
-      const v=document.getElementById('vixValue');
-      const l=document.getElementById('vixLevel');
-      const sign=parseFloat(data.vix.change)>=0?'+':'';
-      if(v)v.textContent=data.vix.value;
-      if(l)l.textContent=sign+data.vix.change+'% - '+data.vix.level;
-    }
-    const t=document.getElementById('updateTime');
-    if(t&&data.lastUpdated)t.textContent='Updated '+data.lastUpdated;
-    renderPortfolio();
-  }catch(e){console.log('Market data unavailable');}
-}
-
-const riskCols={LOW:'#3d9e6e',MEDIUM:'#3d9e6e','MED-HIGH':'#c97d30',HIGH:'#c94a4a','VERY HIGH':'#c94a4a',EXTREME:'#c94a4a'};
-
-function renderCard(stock,category){
-  const live=getLivePrice(stock.ticker);
-  const isBC=category==='bluechip';
-  const borderCol=isBC?'var(--gold)':'var(--blue)';
-  const allocCol=isBC?'var(--gold)':'var(--blue)';
-  const rCol=riskCols[stock.risk]||'#6b7585';
-  let priceHTML=`<div class="stock-price">${stock.price||'--'}</div>`;
-  let changeHTML='';
-  if(live){
-    const cc=getChangeClass(live.changePct);
-    const sign=parseFloat(live.changePct)>=0?'+':'';
-    priceHTML=`<div class="stock-price">${live.price}</div>`;
-    changeHTML=`<div class="stock-change ${cc}">${sign}${live.changePct}%</div>`;
-  }
-  const ef=hasEarningsWarning(stock.ticker)?'<span class="flag earnings">EARNINGS</span>':'';
-  return`<div class="stock-card" style="border-left-color:${borderCol}" onclick="openStressTester('${stock.ticker}')">
-    <div class="stock-card-top">
-      <div><div class="stock-ticker" style="color:${isBC?'var(--gold)':'var(--blue)'}">${stock.ticker}</div><div class="stock-name">${stock.name}</div></div>
-      <div class="stock-right">${ef}${priceHTML}${changeHTML}<div class="stock-alloc" style="color:${allocCol}">${stock.alloc}%</div></div>
-    </div>
-    <div class="stock-bar"><div class="stock-bar-fill" style="width:${stock.beer}%"></div></div>
-    <div class="stock-bottom">
-      <div class="stock-meta"><div class="risk-dot" style="background:${rCol}"></div><span class="stock-risk" style="color:${rCol}">${stock.risk}</span><span style="font-size:9px;color:var(--muted2)">Beer ${stock.beer}%</span></div>
-      <div class="stock-note">${stock.note}</div>
-    </div></div>`;
-}
-
-function renderPortfolio(){
-  const bc=document.getElementById('blueChipGrid');
-  const ac=document.getElementById('activeGrid');
-  if(bc)bc.innerHTML=BLUE_CHIPS.map(s=>renderCard(s,'bluechip')).join('');
-  if(ac){
-    ac.innerHTML=ACTIVE_STOCKS.map(s=>renderCard(s,'active')).join('');
-    const cnt=document.getElementById('activeCount');
-    if(cnt)cnt.textContent=ACTIVE_STOCKS.length+' STOCKS';
-  }
-}
-
-function renderTags(){
-  const all=[...BLUE_CHIPS,...ACTIVE_STOCKS].map(s=>s.ticker);
-  const el=document.getElementById('tickerTags');
-  if(el)el.innerHTML=all.map(t=>`<span class="ticker-tag" onclick="selectTicker('${t}')">${t}</span>`).join('');
-}
-
-function selectTicker(t){const i=document.getElementById('tickerInput');if(i){i.value=t;}}
-
-function renderPhilTags(){
-  const all=[...BLUE_CHIPS,...ACTIVE_STOCKS].map(s=>s.ticker);
-  const el=document.getElementById('philTags');
-  if(el&&!el.hasChildNodes())el.innerHTML=all.map(t=>`<span class="ticker-tag" onclick="document.getElementById('philTickerInput').value='${t}'">${t}</span>`).join('');
-}
-
-function showView(view){
-  const pv=document.getElementById('portfolioView');
-  const tv=document.getElementById('testerView');
-  const phv=document.getElementById('philosophyView');
-  const tabs=document.querySelectorAll('.nav-tab');
-  if(pv)pv.style.display='none';
-  if(tv)tv.style.display='none';
-  if(phv)phv.style.display='none';
-  tabs.forEach(t=>t.classList.remove('active'));
-  if(view==='portfolio'){if(pv)pv.style.display='block';if(tabs[0])tabs[0].classList.add('active');}
-  else if(view==='tester'){if(tv)tv.style.display='block';if(tabs[1])tabs[1].classList.add('active');}
-  else if(view==='philosophy'){if(phv)phv.style.display='block';if(tabs[2])tabs[2].classList.add('active');renderPhilTags();}
-}
-
-function openStressTester(ticker){showView('tester');const i=document.getElementById('tickerInput');if(i)i.value=ticker;runAnalysis();}
-function openPhilosophy(ticker){showView('philosophy');const i=document.getElementById('philTickerInput');if(i)i.value=ticker;runPhilosophy();}
-
-const icoStyles={pass:{bg:'#3d9e6e',col:'#fff',icon:'ok'},fail:{bg:'#c94a4a',col:'#fff',icon:'x'},warn:{bg:'#c97d30',col:'#fff',icon:'!'},neutral:{bg:'#252c32',col:'#6b7585',icon:'-'}};
-
-function runAnalysis(){
-  const ticker=(document.getElementById('tickerInput')?.value||'').trim().toUpperCase();
-  const posSize=document.getElementById('posInput')?.value||'';
-  const resultEl=document.getElementById('analysisResult');
-  if(!ticker||!resultEl)return;
-  const d=DB[ticker];
-  if(!d){resultEl.innerHTML=`<div class="not-found"><strong style="color:var(--amber)">${ticker} not found</strong><br><br>Not in database. Select from tags above.</div>`;return;}
-  const live=getLivePrice(ticker);
-  const livePrice=live?live.price:null;
-  const vMap={GO:{bg:'var(--greenD)',border:'var(--green)',col:'var(--green)'},CAUTION:{bg:'var(--amberD)',border:'var(--amber)',col:'var(--amber)'},'NO-GO':{bg:'var(--redD)',border:'var(--red)',col:'var(--red)'}};
-  const v=vMap[d.verdict]||vMap.CAUTION;
-  const risks=['LOW','MEDIUM','MED-HIGH','HIGH','VERY HIGH','EXTREME'];
-  const rColors=['#3d9e6e','#6ba83d','#a8903d','#c97d30','#c96030','#c94a4a'];
-  const rIdx=Math.max(0,risks.indexOf(d.risk));
-  const rBar=risks.slice(0,5).map((r,i)=>`<div class="risk-seg" style="background:${rColors[i]};opacity:${i<=rIdx?1:0.12}"></div>`).join('');
-  let posAmt='';
-  if(posSize&&d.posRec){const a=Math.round(parseFloat(posSize)*d.posRec/100);if(!isNaN(a)&&a>0)posAmt=` = GBP ${a.toLocaleString()}`;}
-  const bCols={buy:'var(--green)',hold:'var(--amber)',sell:'var(--red)',neutral:'var(--border2)'};
-  const sBadge=d.inst==='BULLISH'?'buy':d.inst==='BEARISH'?'sell':'hold';
-  const cBadge=['STRONG BUY','BUY'].includes(d.consensus)?'buy':['SELL','STRONG SELL'].includes(d.consensus)?'sell':'hold';
-  const stopVal=live?'$'+(live.priceRaw*0.92).toFixed(2):d.stop;
-  const tgtVal=live?'$'+(live.priceRaw*1.10).toFixed(2):d.tgt;
-  const liveSection=live?`<div class="stats-grid" style="margin-bottom:8px">
-    <div class="stat-box"><div class="stat-val">${live.price}</div><div class="stat-lbl">Live Price</div></div>
-    <div class="stat-box"><div class="stat-val" style="color:${parseFloat(live.changePct)>=0?'var(--green)':'var(--red)'}">${parseFloat(live.changePct)>=0?'+':''}${live.changePct}%</div><div class="stat-lbl">Today</div></div>
-    <div class="stat-box"><div class="stat-val">${live.pe||'N/A'}</div><div class="stat-lbl">P/E Ratio</div></div>
-  </div>
-  <div class="stats-grid" style="margin-bottom:8px">
-    <div class="stat-box"><div class="stat-val" style="font-size:11px">${live.week52Low}</div><div class="stat-lbl">52W Low</div></div>
-    <div class="stat-box"><div class="stat-val">${live.marketCap}</div><div class="stat-lbl">Mkt Cap</div></div>
-    <div class="stat-box"><div class="stat-val" style="font-size:11px">${live.week52High}</div><div class="stat-lbl">52W High</div></div>
-  </div>`:'';
-  const today=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
-  resultEl.innerHTML=`<div class="result">
-    <div class="verdict-card" style="background:${v.bg};border-left:4px solid ${v.border}">
-      <div><div class="verdict-company">${d.name} · ${livePrice||'--'} · ${d.sector}</div>
-      <div class="verdict-text" style="color:${v.col}">${d.verdict} - ${d.risk} RISK</div>
-      <div class="verdict-reason">${d.reason}</div></div>
-      <div><div class="score-num">${d.score}</div><div class="score-lbl">Score/100</div></div>
-    </div>
-    <div class="r-grid2">
-      <div class="r-panel">
-        <div class="r-title">Beer and Froth</div>
-        <div class="bf-track"><div class="bf-beer" style="width:${d.beer}%"><span class="bf-lbl">Beer ${d.beer}%</span></div><div class="bf-froth"><span class="bf-lbl">Froth ${d.froth}%</span></div></div>
-        <div class="bf-legend"><span>Intrinsic Value</span><span>Speculative Premium</span></div>
-        <div class="item-list">
-          ${(d.beerPts||[]).map(b=>`<div class="r-item"><div class="r-ico" style="background:#c8973e;color:#060708">B</div><div>${b}</div></div>`).join('')}
-          ${(d.frothPts||[]).map(f=>`<div class="r-item"><div class="r-ico" style="background:#252c32;color:#6b7585">F</div><div>${f}</div></div>`).join('')}
-        </div>
-      </div>
-      <div class="r-panel">
-        <div class="r-title">Risk and Parameters</div>
-        <div class="risk-bar">${rBar}</div>
-        <div style="font-size:14px;font-weight:700;margin-bottom:8px">${d.risk} RISK</div>
-        ${liveSection}
-        <div class="badges">
-          <span class="badge" style="border-color:${bCols[sBadge]};color:${bCols[sBadge]}">Inst: ${d.inst}</span>
-          <span class="badge" style="border-color:${bCols[cBadge]};color:${bCols[cBadge]}">${d.consensus}</span>
-          <span class="badge" style="border-color:var(--border2);color:var(--muted2)">Target: ${d.target}</span>
-        </div>
-        <div class="trade-grid">
-          <div class="trade-box"><div class="trade-lbl">Entry</div><div class="trade-val" style="color:var(--gold)">${livePrice||'--'}</div></div>
-          <div class="trade-box"><div class="trade-lbl">Stop -8%</div><div class="trade-val" style="color:var(--red)">${stopVal}</div></div>
-          <div class="trade-box"><div class="trade-lbl">Target +10%</div><div class="trade-val" style="color:var(--green)">${tgtVal}</div></div>
-        </div>
-        <div style="font-size:11px;color:#8a9098;line-height:1.7">
-          <div><strong style="color:var(--white)">Position:</strong> ${d.posRec}% of pot${posAmt}</div>
-          <div style="margin-top:3px"><strong style="color:var(--white)">DCA:</strong> ${d.dca}</div>
-          ${d.corr?`<div style="margin-top:3px;color:var(--amber)">Corr: ${d.corr}</div>`:''}
-        </div>
-      </div>
-    </div>
-    <div class="r-panel" style="margin-bottom:8px">
-      <div class="r-title">Bull vs Bear</div>
-      <div class="bb-grid">
-        <div class="bull-box"><div class="bb-title" style="color:var(--green)">Bull Case</div>${(d.bull||[]).map(b=>`<div class="bb-point">${b}</div>`).join('')}</div>
-        <div class="bear-box"><div class="bb-title" style="color:var(--red)">Bear Case</div>${(d.bear||[]).map(b=>`<div class="bb-point">${b}</div>`).join('')}</div>
-      </div>
-    </div>
-    <div class="r-grid2">
-      <div class="r-panel">
-        <div class="r-title">Pre-Trade Checklist</div>
-        <div class="item-list">${(d.checks||[]).map(c=>{const ic=icoStyles[c.s]||icoStyles.neutral;return`<div class="r-item"><div class="r-ico" style="background:${ic.bg};color:${ic.col}">${ic.icon}</div><div><strong style="color:var(--white)">${c.t}</strong> - ${c.n}</div></div>`;}).join('')}</div>
-      </div>
-      <div class="r-panel">
-        <div class="r-title">Key Dates</div>
-        ${(d.dates||[]).map(dt=>`<div class="date-row"><span class="date-event">${dt.e}</span><span class="date-when">${dt.w}</span></div>`).join('')}
-        ${d.vix?`<div style="font-size:11px;color:#8a9098;margin-top:8px;line-height:1.6"><strong style="color:var(--white)">VIX Note:</strong> ${d.vix}</div>`:''}
-      </div>
-    </div>
-    <div class="mentor-box">
-      <div class="mentor-text">${d.mentor}</div>
-      <div class="mentor-sig">Claude · Trading Mentor · ${today}</div>
-    </div>
-  </div>`;
-}
-
-function runPhilosophy(){
-  const ticker=(document.getElementById('philTickerInput')?.value||'').trim().toUpperCase();
-  if(!ticker)return;
-  const d=DB[ticker];
-  if(!d){document.getElementById('philResult').innerHTML=`<div class="not-found"><strong style="color:var(--amber)">${ticker} not in database</strong><br><br>Select from tags above.</div>`;return;}
-  renderPhilosophy(ticker,d);
-}
-
-function renderPhilosophy(ticker,d){
-  const px=getPriceContext(ticker,d);
-  const live=getLivePrice(ticker);
-  const scores={};
-  let total=0;
-  Object.keys(PHILOSOPHERS).forEach(k=>{scores[k]=PHILOSOPHERS[k].score(d,px);total+=scores[k].score;});
-  const avg=Math.round(total/Object.keys(PHILOSOPHERS).length);
-  const goCount=Object.values(scores).filter(s=>s.score>=70).length;
-  const cautionCount=Object.values(scores).filter(s=>s.score>=50&&s.score<70).length;
-  const avoidCount=Object.values(scores).filter(s=>s.score<50).length;
-  let cv,cbg,cb,cc;
-  if(goCount>=5){cv='STRONG PHILOSOPHICAL GO';cbg='var(--greenD)';cb='var(--green)';cc='var(--green)';}
-  else if(goCount>=4||(goCount>=3&&avoidCount===0)){cv='PHILOSOPHICAL GO';cbg='var(--greenD)';cb='var(--green)';cc='var(--green)';}
-  else if(avoidCount>=4){cv='PHILOSOPHICAL NO-GO';cbg='var(--redD)';cb='var(--red)';cc='var(--red)';}
-  else{cv='PHILOSOPHICAL CAUTION';cbg='var(--amberD)';cb='var(--amber)';cc='var(--amber)';}
-  const cs=px.hasLive?getCombinedSignal(px.valuationVerdict,px.fearGreedLabel):null;
-  const fgColor=px.fearGreed<=30?'#3d9e6e':px.fearGreed<=50?'#6ba83d':px.fearGreed<=65?'#c97d30':px.fearGreed<=80?'#c96030':'#c94a4a';
-  const priceHTML=px.hasLive?`
-    <div style="background:var(--card);border:1px solid var(--border);padding:14px;margin-bottom:10px;border-radius:3px">
-      <div style="font-size:9px;color:var(--purple);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;font-weight:700">Price Intelligence - ${ticker} at ${live?live.price:'N/A'}</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px">
-        <div style="text-align:center;background:var(--card2);padding:10px 6px;border-radius:3px">
-          <div style="font-size:16px;font-weight:700;color:${px.marginOfSafety==='STRONG'?'var(--green)':px.marginOfSafety==='ADEQUATE'?'var(--amber)':'var(--red)'}">${px.marginOfSafety}</div>
-          <div style="font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:3px">Margin of Safety</div>
-        </div>
-        <div style="text-align:center;background:var(--card2);padding:10px 6px;border-radius:3px">
-          <div style="font-size:14px;font-weight:700;color:${px.valuationVerdict==='UNDERVALUED'?'var(--green)':px.valuationVerdict==='FAIR VALUE'?'var(--amber)':'var(--red)'}">${px.valuationVerdict}</div>
-          <div style="font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:3px">Valuation</div>
-        </div>
-        <div style="text-align:center;background:var(--card2);padding:10px 6px;border-radius:3px">
-          <div style="font-size:13px;font-weight:700;color:${fgColor}">${px.fearGreedLabel}</div>
-          <div style="font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:3px">Fear vs Greed</div>
-        </div>
-        <div style="text-align:center;background:var(--card2);padding:10px 6px;border-radius:3px">
-          <div style="font-size:18px;font-weight:700;color:var(--white)">${px.rangePosition}%</div>
-          <div style="font-size:8px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:3px">52W Position</div>
-        </div>
-      </div>
-      <div style="background:var(--border);height:8px;border-radius:4px;overflow:hidden;margin-bottom:6px">
-        <div style="height:100%;width:${px.fearGreed}%;background:linear-gradient(to right,#3d9e6e,#c97d30,#c94a4a);border-radius:4px"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:8px;color:var(--muted);margin-bottom:10px">
-        <span>EXTREME FEAR</span><span>FEAR</span><span>NEUTRAL</span><span>GREED</span><span>EXTREME GREED</span>
-      </div>
-      ${cs?`<div style="background:${cs.color}22;border:1px solid ${cs.color};border-left:4px solid ${cs.color};padding:12px;border-radius:0 3px 3px 0">
-        <div style="font-size:9px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">Combined Price + Sentiment Signal</div>
-        <div style="font-size:20px;font-weight:700;color:${cs.color};letter-spacing:1px;margin-bottom:6px">${cs.signal}</div>
-        <div style="font-size:11px;color:#a0a8b0;line-height:1.5">${cs.desc}</div>
-      </div>`:''}
-    </div>`:'<div style="background:var(--card);border:1px solid var(--border);padding:12px;margin-bottom:10px;border-radius:3px;font-size:11px;color:var(--muted2)">Live price data loading - price-aware scores will appear once market data loads.</div>';
-  const radarHTML=Object.keys(PHILOSOPHERS).map(k=>{const p=PHILOSOPHERS[k];const s=scores[k];const col=s.score>=70?'var(--green)':s.score>=50?'var(--amber)':'var(--red)';return`<div class="radar-item"><div class="radar-score" style="color:${col}">${s.score}</div><div class="radar-name" style="color:${p.color}">${p.name.split(' ')[1]||p.name.split(' ')[0]}</div></div>`;}).join('');
-  const philCardsHTML=Object.keys(PHILOSOPHERS).map(k=>{const p=PHILOSOPHERS[k];const s=scores[k];const sc=s.score>=70?'#3d9e6e':s.score>=50?'#c97d30':'#c94a4a';return`<div class="phil-card" style="border-top-color:${p.color}"><div class="phil-name" style="color:${p.color}">${p.name}</div><div style="font-size:9px;color:var(--muted2);margin-bottom:6px">${p.role}</div><div class="phil-quote">${p.quote}</div><div class="phil-question">Q: ${p.question}</div><div class="phil-answer">${s.reasoning}</div><div class="phil-score-bar"><div class="phil-score-fill" style="width:${s.score}%;background:${sc}"></div></div><div class="phil-score-label"><span style="color:${sc};font-weight:700">${s.verdict}</span><span style="color:var(--muted2)">${s.score}/100</span></div></div>`;}).join('');
-  let mv='';
-  const gs=scores.graham.score,ss=scores.simons.score,ks=scores.kahneman.score;
-  if(avg>=72)mv=`The combined philosophical analysis of ${ticker} is strongly positive - ${goCount} of the 7 greatest investment minds would support this trade at current price. `;
-  else if(avg>=58)mv=`The philosophical analysis of ${ticker} presents a mixed picture - ${goCount} philosophers support the trade while ${avoidCount} advise avoidance. `;
-  else mv=`The philosophical analysis of ${ticker} raises significant concerns - only ${goCount} of 7 philosophers support this trade at current price. `;
-  if(px.hasLive){
-    if(px.valuationVerdict==='UNDERVALUED')mv+='The current price appears to offer genuine value - you are buying below estimated intrinsic value. ';
-    else if(px.valuationVerdict==='OVERVALUED')mv+='The current price is above intrinsic value - the philosophers would demand patience for a better entry. ';
-    if(px.fearGreedLabel==='EXTREME GREED'||px.fearGreedLabel==='GREED')mv+='WARNING: Sentiment is greedy at '+px.fearGreed+'/100. Kahneman and Dalio both flag this as elevated risk for a new entry. Apply the 24-hour rule. ';
-    else if(px.fearGreedLabel==='EXTREME FEAR'||px.fearGreedLabel==='FEAR')mv+='Sentiment is fearful at '+px.fearGreed+'/100 - this is historically the best time to buy quality businesses. Buffett and Graham both approve. ';
-  }
-  if(ss<50)mv+='Simons would stand down - likely due to earnings risk or undefined exit parameters. Resolve these before entry. ';
-  else if(ss>=70)mv+='Simons systematic framework is satisfied - set your stop loss before entry and let the system work. ';
-  if(ks<50)mv+='Kahneman raises a psychological warning - high greed or earnings risk may be creating System 1 emotional bias. Apply the 24-hour rule. ';
-  if(goCount>=4&&ss>=60&&ks>=55)mv+=`Scientific mentor verdict: The philosophical consensus supports a considered position in ${ticker}. Enter at the planned level, set your stop loss immediately, hold to your defined target. Trust the framework.`;
-  else if(avoidCount>=4)mv+=`Scientific mentor verdict: The philosophical consensus does not support this trade at current price. Patience is not the absence of action - it is the discipline to wait for a better opportunity.`;
-  else mv+=`Scientific mentor verdict: This demands discipline over conviction. Use minimum position size, set stop loss immediately, and be prepared to exit if the thesis changes. Half-conviction requires half-sizing.`;
-  const today=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
-  document.getElementById('philResult').innerHTML=`<div style="animation:fadeUp .3s ease">
-    ${priceHTML}
-    <div style="background:var(--card);border:1px solid var(--border);padding:14px;margin-bottom:10px;border-radius:3px">
-      <div style="font-size:9px;color:var(--purple);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;font-weight:700">Seven Philosopher Scores - ${ticker}</div>
-      <div class="radar-grid">${radarHTML}</div>
-      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--border)">
-        <div style="font-size:11px;color:var(--muted2)">Support: <strong style="color:var(--green)">${goCount}</strong> Caution: <strong style="color:var(--amber)">${cautionCount}</strong> Avoid: <strong style="color:var(--red)">${avoidCount}</strong></div>
-        <div style="text-align:right"><div style="font-size:40px;font-weight:700;color:var(--white);line-height:1">${avg}</div><div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Combined Score</div></div>
-      </div>
-    </div>
-    <div style="background:${cbg};border-left:4px solid ${cb};padding:16px;margin-bottom:10px;border-radius:0 3px 3px 0">
-      <div style="font-size:9px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">Philosophical Combined Verdict</div>
-      <div style="font-size:24px;font-weight:700;color:${cc};letter-spacing:2px">${cv}</div>
-      <div style="font-size:11px;color:#a0a8b0;margin-top:6px;line-height:1.5">${goCount} of 7 philosophers support this trade at current price. ${avoidCount} recommend avoidance.</div>
-    </div>
-    <div style="font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;font-weight:600">Individual Philosopher Analysis - Price Aware</div>
-    <div class="phil-score-grid">${philCardsHTML}</div>
-    <div class="scientific-verdict">
-      <div class="sv-title">Scientific Mentor Verdict - ${ticker} - ${today}</div>
-      <div class="sv-text">${mv}</div>
-      <div style="font-size:9px;color:var(--purple);letter-spacing:1px;text-transform:uppercase;margin-top:12px;font-weight:700">Claude - MaxSmith Capital Trading Mentor - Price-Aware Analysis</div>
-    </div>
-  </div>`;
-}
-
-document.addEventListener('DOMContentLoaded',()=>{
-  renderPortfolio();
-  renderTags();
-  fetchMarketData();
-  const ti=document.getElementById('tickerInput');
-  if(ti)ti.addEventListener('keydown',e=>{if(e.key==='Enter')runAnalysis();});
-  const pi=document.getElementById('philTickerInput');
-  if(pi)pi.addEventListener('keydown',e=>{if(e.key==='Enter')runPhilosophy();});
-  setInterval(fetchMarketData,5*60*1000);
-});
-</script>
-</body>
-</html>
