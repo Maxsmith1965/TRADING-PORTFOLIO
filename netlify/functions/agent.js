@@ -133,7 +133,7 @@ MENTOR VERDICT: Direct recommendation. Buy now or wait? Entry conditions if appl
 Be concise, honest and direct. No platitudes.`;
 
   const body = JSON.stringify({
-    model: 'claude-sonnet-4-5',
+    model: 'claude-sonnet-4-6',
     max_tokens: 1000,
     messages: [{ role: 'user', content: prompt }]
   });
