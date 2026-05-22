@@ -158,7 +158,11 @@ Be concise, honest and direct. No platitudes.`;
       res.on('end', () => {
         try {
           const parsed = JSON.parse(data);
-          resolve(parsed.content?.[0]?.text || 'Analysis unavailable - check API key');
+          if (parsed.error) {
+            resolve('API Error: ' + parsed.error.type + ' - ' + parsed.error.message);
+          } else {
+            resolve(parsed.content?.[0]?.text || 'No content returned from Claude API');
+          }
         } catch(e) { resolve('Parse error - ' + data.substring(0, 100)); }
       });
     });
