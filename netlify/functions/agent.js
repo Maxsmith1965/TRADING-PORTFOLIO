@@ -69,11 +69,16 @@ async function claudeSynthesis(ticker, d, anthropicKey) {
   const q = d.quote;
   const m = d.metrics?.metric || {};
   const p = d.profile || {};
-  const r = d.reco?.[0] || {};
+  const r = Array.isArray(d.reco) ? d.reco[0] : (d.reco || {});
   const s = d.sentiment?.sentiment || {};
-  const news = d.news?.slice(0, 3).map(n => '- ' + n.headline).join('\n') || 'No recent news';
+  const news = Array.isArray(d.news) ? d.news.slice(0, 3).map(n => '- ' + (n.headline || n.title || '')).join('\n') : 'No recent news';
   const nextEarnings = d.earnings?.earningsCalendar?.[0]?.date || 'Check calendar';
   const insiderCount = d.secInsider?.length || 0;
+
+  // Debug log to see what we actually have
+  console.log('Quote data:', JSON.stringify(q));
+  console.log('Metrics keys:', Object.keys(m).slice(0, 10));
+  console.log('Reco:', JSON.stringify(r));
 
   const prompt = `You are Claude, AI trading mentor for MaxSmith Capital, a disciplined UK private investor with £50,000 deployed.
 
@@ -81,18 +86,19 @@ Analyse this live data for ${ticker} and produce a structured research brief.
 
 PRICE DATA:
 - Current Price: ${q?.c ? '$' + q.c.toFixed(2) : 'N/A'}
-- Today Change: ${q?.dp ? q.dp.toFixed(2) + '%' : 'N/A'}
+- Today Change: ${q?.dp !== undefined ? q.dp.toFixed(2) + '%' : 'N/A'}
+- Previous Close: ${q?.pc ? '$' + q.pc.toFixed(2) : 'N/A'}
 - Market Cap: ${formatMarketCap(p.marketCapitalization)}
 - 52W High: ${m['52WeekHigh'] ? '$' + m['52WeekHigh'] : 'N/A'}
 - 52W Low: ${m['52WeekLow'] ? '$' + m['52WeekLow'] : 'N/A'}
-- P/E Ratio: ${m.peNormalizedAnnual?.toFixed(1) || 'N/A'}
+- P/E Ratio: ${m.peNormalizedAnnual ? m.peNormalizedAnnual.toFixed(1) : 'N/A'}
 
 FUNDAMENTALS:
 - Revenue Growth YoY: ${m.revenueGrowthTTMYoy ? (m.revenueGrowthTTMYoy * 100).toFixed(1) + '%' : 'N/A'}
-- Gross Margin: ${m.grossMarginTTM?.toFixed(1) + '%' || 'N/A'}
-- FCF Margin: ${m.fcfMarginTTM?.toFixed(1) + '%' || 'N/A'}
-- Return on Equity: ${m.roeTTM?.toFixed(1) + '%' || 'N/A'}
-- Net Debt/Equity: ${m.netDebtToTotalEquityQuarterly?.toFixed(2) || 'N/A'}
+- Gross Margin: ${m.grossMarginTTM ? m.grossMarginTTM.toFixed(1) + '%' : 'N/A'}
+- FCF Margin: ${m.fcfMarginTTM ? m.fcfMarginTTM.toFixed(1) + '%' : 'N/A'}
+- Return on Equity: ${m.roeTTM ? m.roeTTM.toFixed(1) + '%' : 'N/A'}
+- Net Debt/Equity: ${m.netDebtToTotalEquityQuarterly ? m.netDebtToTotalEquityQuarterly.toFixed(2) : 'N/A'}
 
 ANALYST CONSENSUS:
 - Strong Buy: ${r.strongBuy || 0} | Buy: ${r.buy || 0} | Hold: ${r.hold || 0} | Sell: ${r.sell || 0}
