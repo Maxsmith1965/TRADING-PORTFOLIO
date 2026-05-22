@@ -1,6 +1,7 @@
-// ── MAXSMITH CAPITAL RESEARCH AGENT v1.0 ────────────────
-// Phase 1: Live fundamentals + news + earnings + insider activity
-// Sources: Finnhub API + SEC EDGAR + Anthropic Claude AI
+// ── MAXSMITH CAPITAL RESEARCH AGENT v2.0 ────────────────
+// Phase 2: Live fundamentals + news + earnings + insider activity
+// + Government contracts (USASpending.gov) + Better news filtering
+// Sources: Finnhub API + SEC EDGAR + USASpending.gov + Anthropic Claude AI
 
 const https = require('https');
 
@@ -40,7 +41,7 @@ function formatMarketCap(mc) {
 async function getFinnhubData(ticker, apiKey) {
   const base = 'https://finnhub.io/api/v1';
   const t = '&token=' + apiKey;
-  const from = getDateDaysAgo(7);
+  const from = getDateDaysAgo(14);
   const to = getToday();
 
   const [quote, profile, metrics, news, sentiment, insider, earnings, reco] = await Promise.all([
@@ -54,7 +55,74 @@ async function getFinnhubData(ticker, apiKey) {
     httpsGet(base + '/stock/recommendation?symbol=' + ticker + t)
   ]);
 
-  return { quote, profile, metrics, news: news || [], sentiment, insider, earnings, reco };
+  // Filter news to only company-relevant headlines
+  const companyName = profile?.name?.split(' ')[0]?.toLowerCase() || ticker.toLowerCase();
+  const filteredNews = (news || []).filter(n => {
+    const h = (n.headline || n.summary || '').toLowerCase();
+    return h.includes(ticker.toLowerCase()) || h.includes(companyName);
+  }).slice(0, 5);
+
+  // Use filtered news if available, otherwise use all news
+  const finalNews = filteredNews.length > 0 ? filteredNews : (news || []).slice(0, 3);
+
+  return { quote, profile, metrics, news: finalNews, sentiment, insider, earnings, reco };
+}
+
+async function getGovernmentContracts(companyName) {
+  try {
+    // USASpending.gov free API - no key required
+    const searchName = encodeURIComponent(companyName.split(' ')[0]);
+    const url = 'https://api.usaspending.gov/api/v2/search/spending_by_award/?filters={"recipient_search_text":["' + searchName + '"],"award_type_codes":["A","B","C","D"]}&fields=Award+Amount,Awarding+Agency,Description,recipient_name,Award+Date&limit=5&order=desc&sort=Award+Amount&page=1';
+
+    const response = await new Promise((resolve) => {
+      const options = {
+        hostname: 'api.usaspending.gov',
+        path: '/api/v2/search/spending_by_award/',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'MaxSmithCapital/1.0 (max@zerolondon.uk)'
+        },
+        timeout: 8000
+      };
+
+      const body = JSON.stringify({
+        filters: {
+          recipient_search_text: [companyName.split(' ')[0]],
+          award_type_codes: ['A', 'B', 'C', 'D']
+        },
+        fields: ['Award Amount', 'Awarding Agency', 'Description', 'recipient_name', 'Award Date'],
+        limit: 5,
+        order: 'desc',
+        sort: 'Award Amount',
+        page: 1
+      });
+
+      const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          try { resolve(JSON.parse(data)); }
+          catch(e) { resolve(null); }
+        });
+      });
+      req.on('error', () => resolve(null));
+      req.on('timeout', () => resolve(null));
+      req.write(body);
+      req.end();
+    });
+
+    const results = response?.results || [];
+    const totalValue = results.reduce((sum, r) => sum + (r['Award Amount'] || 0), 0);
+
+    return {
+      contracts: results.slice(0, 3),
+      totalValue,
+      count: results.length
+    };
+  } catch(e) {
+    return { contracts: [], totalValue: 0, count: 0 };
+  }
 }
 
 async function getSecData(ticker, email) {
@@ -72,8 +140,16 @@ async function claudeSynthesis(ticker, d, anthropicKey) {
   const r = Array.isArray(d.reco) ? d.reco[0] : (d.reco || {});
   const s = d.sentiment?.sentiment || {};
   const news = Array.isArray(d.news) ? d.news.slice(0, 3).map(n => '- ' + (n.headline || n.title || '')).join('\n') : 'No recent news';
-  const nextEarnings = d.earnings?.earningsCalendar?.[0]?.date || 'Check calendar';
+  // Only show FUTURE earnings dates
+  const today = getToday();
+  const earningsCalendar = d.earnings?.earningsCalendar || [];
+  const futureEarnings = earningsCalendar.filter(e => e.date > today);
+  const nextEarnings = futureEarnings[0]?.date || 'No upcoming earnings in Finnhub calendar — check manually';
   const insiderCount = d.secInsider?.length || 0;
+  const govData = d.govContracts || { contracts: [], totalValue: 0, count: 0 };
+  const govSummary = govData.count > 0
+    ? `${govData.count} recent contracts found. Total value: $${(govData.totalValue / 1000000).toFixed(1)}M. Top contracts: ${govData.contracts.map(c => (c.Description || 'Contract') + ' - $' + ((c['Award Amount'] || 0) / 1000000).toFixed(1) + 'M from ' + (c['Awarding Agency'] || 'US Government')).join('; ')}`
+    : 'No recent government contracts found in USASpending.gov database';
 
   // Debug log to see what we actually have
   console.log('Quote data:', JSON.stringify(q));
@@ -113,6 +189,9 @@ ${news}
 INSIDER ACTIVITY:
 - SEC Form 4 filings in last 30 days: ${insiderCount}
 
+GOVERNMENT CONTRACTS (USASpending.gov):
+- ${govSummary}
+
 EARNINGS:
 - Next earnings date: ${nextEarnings}
 
@@ -129,6 +208,8 @@ FUNDAMENTAL HEALTH: Revenue growth, margins, balance sheet strength.
 SENTIMENT AND NEWS: Analyst consensus, news sentiment, material headlines.
 
 INSIDER ACTIVITY: Recent Form 4 filings and what they signal.
+
+GOVERNMENT CONTRACTS: Recent USASpending.gov contract wins — size, agency, strategic significance for the investment thesis.
 
 EARNINGS RISK: Next date and what to watch for.
 
@@ -214,6 +295,11 @@ exports.handler = async (event) => {
 
     const data = { ...finnhub, secInsider: sec };
 
+    // Fetch government contracts using company name from profile
+    const companyName = data.profile?.name || ticker;
+    const govContracts = await getGovernmentContracts(companyName);
+    data.govContracts = govContracts;
+
     let analysis = null;
     if (ANTHROPIC) {
       analysis = await claudeSynthesis(ticker, data, ANTHROPIC);
@@ -223,7 +309,9 @@ exports.handler = async (event) => {
 
     const q = data.quote;
     const m = data.metrics?.metric || {};
-    const r = data.reco?.[0] || {};
+    const r = Array.isArray(data.reco) ? data.reco[0] : (data.reco || {});
+    const todayStr = getToday();
+    const futureEarnings = (data.earnings?.earningsCalendar || []).filter(e => e.date > todayStr);
 
     return {
       statusCode: 200,
@@ -244,7 +332,7 @@ exports.handler = async (event) => {
           week52High: m['52WeekHigh'] || null,
           week52Low: m['52WeekLow'] || null,
           recommendation: { strongBuy: r.strongBuy || 0, buy: r.buy || 0, hold: r.hold || 0, sell: r.sell || 0 },
-          nextEarnings: data.earnings?.earningsCalendar?.[0]?.date || null,
+          nextEarnings: futureEarnings[0]?.date || null,
           sentiment: data.sentiment?.sentiment || null,
           newsCount: data.news?.length || 0,
           insiderFilings: sec.length
