@@ -345,11 +345,10 @@ exports.handler = async (event) => {
 
     if (mode === 'fast') {
       // FAST MODE - Core data only, quick synthesis
-      const [finnhub, sec, gov] = await Promise.all([
-        getFinnhub(ticker, FINNHUB),
-        getSecData(ticker, ticker, SEC_EMAIL),
-        getGovContracts(ticker)
-      ]);
+      let finnhub, sec, gov;
+      try { finnhub = await getFinnhub(ticker, FINNHUB); } catch(e) { console.error('Finnhub error:', e.message); finnhub = {}; }
+      try { sec = await getSecData(ticker, ticker, SEC_EMAIL); } catch(e) { console.error('SEC error:', e.message); sec = { form4Filings:0, form4Details:[], activist13D:[], hasActivist:false }; }
+      try { gov = await getGovContracts(ticker); } catch(e) { console.error('Gov error:', e.message); gov = { contracts:[], total:0, count:0 }; }
 
       const data = { ...finnhub, sec, gov };
       const analysis = ANTHROPIC ? await claudeSynthesize(ticker, data, ANTHROPIC, 'fast') : 'Add ANTHROPIC_KEY to Netlify to enable AI synthesis.';
@@ -384,12 +383,11 @@ exports.handler = async (event) => {
 
     if (mode === 'deep') {
       // DEEP MODE - All sources, full synthesis
-      const [finnhub, sec, gov, patents] = await Promise.all([
-        getFinnhub(ticker, FINNHUB),
-        getSecData(ticker, ticker, SEC_EMAIL),
-        getGovContracts(ticker),
-        getPatents(ticker)
-      ]);
+      let finnhub, sec, gov, patents;
+      try { finnhub = await getFinnhub(ticker, FINNHUB); } catch(e) { console.error('Finnhub error:', e.message); finnhub = {}; }
+      try { sec = await getSecData(ticker, ticker, SEC_EMAIL); } catch(e) { console.error('SEC error:', e.message); sec = { form4Filings:0, form4Details:[], activist13D:[], hasActivist:false }; }
+      try { gov = await getGovContracts(ticker); } catch(e) { console.error('Gov error:', e.message); gov = { contracts:[], total:0, count:0 }; }
+      try { patents = await getPatents(ticker); } catch(e) { console.error('Patents error:', e.message); patents = { patents:[], count:0 }; }
 
       const data = { ...finnhub, sec, gov, patents };
       const analysis = ANTHROPIC ? await claudeSynthesize(ticker, data, ANTHROPIC, 'deep') : 'Add ANTHROPIC_KEY to Netlify to enable AI synthesis.';
@@ -436,7 +434,11 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid mode. Use ?mode=fast or ?mode=deep' }) };
 
   } catch(e) {
-    console.error('Agent v3 error:', e.message);
-    return { statusCode: 500, headers, body: JSON.stringify({ error: e.message, ticker }) };
+    console.error('Agent v3 error:', e.message, e.stack);
+    return { statusCode: 500, headers, body: JSON.stringify({ 
+      error: e.message, 
+      stack: e.stack?.split('\n').slice(0,3).join(' | '),
+      ticker 
+    }) };
   }
 };
