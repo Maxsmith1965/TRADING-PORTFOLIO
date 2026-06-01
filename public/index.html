@@ -215,20 +215,20 @@ body{background:var(--black);color:var(--white);font-family:-apple-system,BlinkM
 <!-- AGENT VIEW -->
 <div id="viewAgent" class="view">
   <div class="agent-hero">
-    <div style="font-size:9px;color:var(--blue);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;font-weight:700">🤖 Research Agent</div>
-    <div style="font-size:17px;font-weight:700;color:var(--white);margin-bottom:4px">AI-Powered Stock Intelligence</div>
-    <div style="font-size:11px;color:#6a9abf;line-height:1.6">Live data from Finnhub + SEC EDGAR + USASpending.gov + Claude AI. Full report in 30 seconds.</div>
+    <div style="font-size:9px;color:var(--blue);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;font-weight:700">🤖 Research Agent v3.0</div>
+    <div style="font-size:17px;font-weight:700;color:var(--white);margin-bottom:4px">Institutional-Grade Intelligence</div>
+    <div style="font-size:11px;color:#6a9abf;line-height:1.6">Finnhub · SEC EDGAR · USASpending.gov · USPTO Patents · Claude AI</div>
   </div>
   <div class="agent-input-row">
     <input class="agent-input" id="agentInput" placeholder="NVDA" maxlength="6" oninput="this.value=this.value.toUpperCase()"/>
-    <button class="agent-go-btn" onclick="runAgent()">⚡ Deep Report</button>
+    <button class="agent-go-btn" onclick="runAgent('fast')">⚡ Fast Summary</button>
   </div>
   <div class="ticker-tags" id="agentTags"></div>
   <div id="agentResult">
     <div class="ready-box">
       <div class="ready-icon">🤖</div>
       <div class="ready-title" style="color:var(--blue)">AGENT READY</div>
-      <div class="ready-sub">Enter any ticker<br>Full AI analysis in 30 seconds</div>
+      <div class="ready-sub">Fast Summary — 15 seconds<br>Deep Dive — 60 seconds<br>Enter any ticker to begin</div>
     </div>
   </div>
 </div>
@@ -1000,7 +1000,7 @@ function showDetail(ticker) {
 function goToAgent(ticker) {
   showView('agent');
   document.getElementById('agentInput').value = ticker;
-  runAgent();
+  runAgent('fast');
 }
 
 function goToPhil(ticker) {
@@ -1036,80 +1036,154 @@ function getSignalColorFromText(signal) {
   return '#6b7585';
 }
 
-async function runAgent() {
+async function runAgent(mode) {
   const ticker = (document.getElementById('agentInput')?.value || '').trim().toUpperCase();
   if (!ticker) return;
   const resultEl = document.getElementById('agentResult');
   if (!resultEl) return;
+  const isFast = mode === 'fast';
 
   resultEl.innerHTML = `<div style="display:flex;align-items:center;gap:12px;padding:30px 20px;background:var(--card);border:1px solid var(--border);border-radius:4px">
     <div class="agent-spinner"></div>
     <div>
-      <div style="font-size:12px;color:var(--blue);font-weight:700;letter-spacing:1px">ANALYSING ${ticker}</div>
-      <div style="font-size:10px;color:var(--muted2);margin-top:4px">Finnhub · SEC EDGAR · USASpending.gov · Claude AI</div>
+      <div style="font-size:12px;color:var(--blue);font-weight:700;letter-spacing:1px">${isFast ? 'FAST SCAN' : 'DEEP DIVE'} — ${ticker}</div>
+      <div style="font-size:10px;color:var(--muted2);margin-top:4px">${isFast ? 'Finnhub · SEC EDGAR · Claude AI · ~15 seconds' : 'All sources · USPTO · Patents · Gov · ~60 seconds'}</div>
     </div>
   </div>`;
 
   try {
-    const resp = await fetch(`/.netlify/functions/agent?ticker=${ticker}`);
+    const resp = await fetch(`/.netlify/functions/agent?ticker=${ticker}&mode=${mode}`);
     const data = await resp.json();
-    if (data.error && data.error.includes('API Error')) {
+
+    if (data.error) {
       resultEl.innerHTML = `<div class="not-found"><strong style="color:var(--amber)">Agent Error</strong><br><br>${data.error}</div>`;
       return;
     }
 
-    const signal = extractSignal(data.analysis);
-    const sigCol = getSignalColorFromText(signal);
-    const today = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+    const todayStr = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+    const chgCol = parseFloat(data.changePercent) >= 0 ? 'var(--green)' : 'var(--red)';
+    const chgSign = parseFloat(data.changePercent) >= 0 ? '+' : '';
 
-    // Parse sections
-    const sectionKeys = ['PRICE SNAPSHOT','FUNDAMENTAL HEALTH','SENTIMENT AND NEWS','INSIDER ACTIVITY','GOVERNMENT CONTRACTS','EARNINGS RISK','BEER AND FROTH NOTE'];
-    let sectionsHTML = '';
-    if (data.analysis) {
-      sectionKeys.forEach(key => {
-        const rx = new RegExp(key.replace('AND','[&AND]?') + ':?\\s*([\\s\\S]*?)(?=\\n##|\\n[A-Z ]+:|$)','i');
-        const m = data.analysis.match(rx);
-        if (m && m[1].trim().length > 20) {
-          sectionsHTML += `<div class="agent-section"><div class="agent-section-title">${key}</div><div class="agent-text">${m[1].trim().replace(/\*\*/g,'')}</div></div>`;
+    // Extract signal from analysis
+    const sigMatch = data.analysis?.match(/SIGNAL:\s*([^\n]+)/i);
+    const signal = sigMatch ? sigMatch[1].trim().replace(/[*[\]]/g,'').substring(0,25) : 'ANALYSED';
+    const sigCol = getSignalColorFromText(signal);
+
+    // Parse fast summary sections
+    const parseSection = (key) => {
+      const rx = new RegExp(key + ':?\\s*([\\s\\S]*?)(?=\\n[A-Z ]+:|$)', 'i');
+      const m = data.analysis?.match(rx);
+      return m ? m[1].trim().replace(/\*\*/g,'') : null;
+    };
+
+    const oneLine = parseSection('ONE LINE');
+    const priceCheck = parseSection('PRICE CHECK');
+    const fundSnap = parseSection('FUNDAMENTAL SNAP');
+    const keyRisk = parseSection('KEY RISK');
+    const entryConditions = parseSection('ENTRY CONDITIONS');
+
+    // Stats grid
+    const r = data.rawData || {};
+    const statsHTML = `<div class="stats-grid" style="margin-bottom:10px">
+      <div class="stat-box"><div class="stat-val">${r.pe ? r.pe.toFixed(1)+'x' : 'N/A'}</div><div class="stat-lbl">P/E</div></div>
+      <div class="stat-box"><div class="stat-val">${r.revenueGrowth ? (r.revenueGrowth*100).toFixed(1)+'%' : 'N/A'}</div><div class="stat-lbl">Rev Growth</div></div>
+      <div class="stat-box"><div class="stat-val">${r.grossMargin ? r.grossMargin.toFixed(1)+'%' : 'N/A'}</div><div class="stat-lbl">Gross Margin</div></div>
+      <div class="stat-box"><div class="stat-val" style="font-size:10px">${r.week52High ? '$'+r.week52High.toFixed(0) : 'N/A'}</div><div class="stat-lbl">52W High</div></div>
+      <div class="stat-box"><div class="stat-val" style="font-size:10px">${r.nextEarnings || 'N/A'}</div><div class="stat-lbl">Earnings</div></div>
+      <div class="stat-box"><div class="stat-val">${((r.recommendation?.strongBuy||0)+(r.recommendation?.buy||0))} Buy</div><div class="stat-lbl">Analysts</div></div>
+    </div>`;
+
+    // Data sources badge
+    const sourcesHTML = isFast
+      ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">
+          <span style="font-size:8px;padding:2px 6px;background:var(--blueD);color:var(--blue);border-radius:2px;border:1px solid #1a3a5c">Finnhub</span>
+          <span style="font-size:8px;padding:2px 6px;background:var(--blueD);color:var(--blue);border-radius:2px;border:1px solid #1a3a5c">SEC EDGAR</span>
+          <span style="font-size:8px;padding:2px 6px;background:var(--blueD);color:var(--blue);border-radius:2px;border:1px solid #1a3a5c">USASpending</span>
+          <span style="font-size:8px;padding:2px 6px;background:var(--blueD);color:var(--blue);border-radius:2px;border:1px solid #1a3a5c">Claude AI</span>
+        </div>`
+      : `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">
+          ${Object.entries(data.sources||{}).map(([k,v]) => `<span style="font-size:8px;padding:2px 6px;background:${v.includes('DETECTED')?'var(--amberD)':'var(--blueD)'};color:${v.includes('DETECTED')?'var(--amber)':'var(--blue)'};border-radius:2px;border:1px solid ${v.includes('DETECTED')?'var(--amber)':'#1a3a5c'}">${k}: ${v}</span>`).join('')}
+        </div>`;
+
+    if (isFast) {
+      // FAST SUMMARY UI
+      resultEl.innerHTML = `<div class="fade-up">
+        <div style="background:#050d1a;border:1px solid #1a3a5c;padding:14px;margin-bottom:10px;border-radius:4px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-size:9px;color:var(--blue);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">⚡ Fast Summary · ${todayStr}</div>
+            <div style="font-size:26px;font-weight:700;color:var(--white)">${ticker}</div>
+            ${data.price ? `<div style="font-size:16px;font-weight:600;color:var(--white);margin-top:4px">${data.price} <span style="color:${chgCol}">${chgSign}${data.changePercent}%</span></div>` : ''}
+            ${data.companyName ? `<div style="font-size:10px;color:var(--muted2);margin-top:2px">${data.companyName}</div>` : ''}
+          </div>
+          <div style="background:${sigCol}22;border:1px solid ${sigCol};color:${sigCol};padding:8px 14px;border-radius:4px;font-size:12px;font-weight:700;letter-spacing:1px;text-align:center">${signal}</div>
+        </div>
+
+        ${sourcesHTML}
+        ${statsHTML}
+
+        ${oneLine ? `<div style="background:${sigCol}15;border:1px solid ${sigCol};border-left:4px solid ${sigCol};padding:14px;margin-bottom:10px;border-radius:0 4px 4px 0">
+          <div style="font-size:9px;color:${sigCol};letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;font-weight:700">Verdict</div>
+          <div style="font-size:14px;color:var(--white);font-weight:600;line-height:1.5">${oneLine}</div>
+        </div>` : ''}
+
+        ${priceCheck ? `<div class="agent-section"><div class="agent-section-title">📊 Price Check</div><div class="agent-text">${priceCheck}</div></div>` : ''}
+        ${fundSnap ? `<div class="agent-section"><div class="agent-section-title">🍺 Fundamental Snapshot</div><div class="agent-text">${fundSnap}</div></div>` : ''}
+        ${keyRisk ? `<div class="agent-section" style="border-left:3px solid var(--red)"><div class="agent-section-title" style="color:var(--red)">⚠ Key Risk</div><div class="agent-text">${keyRisk}</div></div>` : ''}
+        ${entryConditions ? `<div class="agent-section" style="border-left:3px solid var(--green)"><div class="agent-section-title" style="color:var(--green)">✓ Entry Conditions</div><div class="agent-text">${entryConditions}</div></div>` : ''}
+
+        <button onclick="runAgent('deep')" style="width:100%;background:var(--blueD);color:var(--blue);border:1px solid var(--blue);padding:14px;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;border-radius:4px;margin-bottom:8px">
+          🔬 Run Deep Dive — All Sources (~60 sec)
+        </button>
+        <button class="phil-btn" onclick="goToPhil('${ticker}')">🧠 Philosophy Engine on ${ticker}</button>
+      </div>`;
+
+    } else {
+      // DEEP DIVE UI
+      const deepSections = ['PRICE INTELLIGENCE','FUNDAMENTAL HEALTH','NEWS & SENTIMENT','INSIDER & INSTITUTIONAL','GOVERNMENT INTELLIGENCE','PATENT INTELLIGENCE','BEER & FROTH ESTIMATE','EARNINGS RISK ASSESSMENT'];
+      let deepHTML = '';
+      deepSections.forEach(key => {
+        const val = parseSection(key);
+        if (val && val.length > 20) {
+          const icons = {'PRICE INTELLIGENCE':'📊','FUNDAMENTAL HEALTH':'🍺','NEWS & SENTIMENT':'📰','INSIDER & INSTITUTIONAL':'👤','GOVERNMENT INTELLIGENCE':'🏛','PATENT INTELLIGENCE':'🔬','BEER & FROTH ESTIMATE':'🫧','EARNINGS RISK ASSESSMENT':'⚠'};
+          const isRisk = key.includes('RISK') || key.includes('INSIDER');
+          const isGov = key.includes('GOVERNMENT') || key.includes('PATENT');
+          const borderCol = isRisk ? 'var(--amber)' : isGov ? 'var(--gold)' : 'var(--blue)';
+          deepHTML += `<div class="agent-section" style="border-left:3px solid ${borderCol}">
+            <div class="agent-section-title" style="color:${borderCol}">${icons[key]||'•'} ${key}</div>
+            <div class="agent-text">${val}</div>
+          </div>`;
         }
       });
+
+      const mentorVal = parseSection('MENTOR VERDICT');
+
+      resultEl.innerHTML = `<div class="fade-up">
+        <div style="background:#050d1a;border:1px solid #1a3a5c;padding:14px;margin-bottom:10px;border-radius:4px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-size:9px;color:var(--blue);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">🔬 Deep Dive · ${todayStr}</div>
+            <div style="font-size:26px;font-weight:700;color:var(--white)">${ticker}</div>
+            ${data.price ? `<div style="font-size:16px;font-weight:600;color:var(--white);margin-top:4px">${data.price} <span style="color:${chgCol}">${chgSign}${data.changePercent}%</span></div>` : ''}
+            ${data.companyName ? `<div style="font-size:10px;color:var(--muted2);margin-top:2px">${data.companyName}</div>` : ''}
+          </div>
+          <div style="background:${sigCol}22;border:1px solid ${sigCol};color:${sigCol};padding:8px 14px;border-radius:4px;font-size:12px;font-weight:700;letter-spacing:1px;text-align:center">${signal}</div>
+        </div>
+
+        ${sourcesHTML}
+        ${statsHTML}
+        ${deepHTML}
+
+        ${mentorVal ? `<div class="agent-mentor">
+          <div style="font-size:9px;color:var(--blue);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;font-weight:700">🎓 Mentor Verdict — ${ticker}</div>
+          <div class="agent-mentor-text">${mentorVal}</div>
+          <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-top:10px">— Claude Research Agent v3.0 · MaxSmith Capital · ${todayStr}</div>
+        </div>` : ''}
+
+        <button class="phil-btn" onclick="goToPhil('${ticker}')">🧠 Philosophy Engine on ${ticker}</button>
+      </div>`;
     }
 
-    const mentorRx = /MENTOR VERDICT:?\s*([\s\S]*?)$/i;
-    const mentorM = data.analysis?.match(mentorRx);
-    const mentorText = mentorM ? mentorM[1].trim().replace(/\*\*/g,'') : (data.analysis || 'Add ANTHROPIC_KEY to Netlify to enable AI synthesis.');
-
-    resultEl.innerHTML = `<div class="fade-up">
-      <div style="background:#050d1a;border:1px solid #1a3a5c;padding:14px;margin-bottom:10px;border-radius:4px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
-        <div>
-          <div style="font-size:9px;color:var(--blue);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">Research Agent · ${today}</div>
-          <div style="font-size:26px;font-weight:700;color:var(--white)">${ticker}</div>
-          ${data.price ? `<div style="font-size:16px;font-weight:600;color:var(--white);margin-top:4px">${data.price} <span style="color:${parseFloat(data.changePercent) >= 0 ? 'var(--green)':'var(--red)'};">${parseFloat(data.changePercent) >= 0 ? '+':''}${data.changePercent}%</span></div>` : ''}
-        </div>
-        <div style="background:${sigCol}22;border:1px solid ${sigCol};color:${sigCol};padding:8px 14px;border-radius:4px;font-size:12px;font-weight:700;letter-spacing:1px">${signal}</div>
-      </div>
-
-      ${data.rawData ? `<div class="stats-grid" style="margin-bottom:10px">
-        <div class="stat-box"><div class="stat-val">${data.rawData.pe ? data.rawData.pe.toFixed(1)+'x' : 'N/A'}</div><div class="stat-lbl">P/E</div></div>
-        <div class="stat-box"><div class="stat-val">${data.rawData.revenueGrowth ? (data.rawData.revenueGrowth*100).toFixed(1)+'%' : 'N/A'}</div><div class="stat-lbl">Rev Growth</div></div>
-        <div class="stat-box"><div class="stat-val">${data.rawData.grossMargin ? data.rawData.grossMargin.toFixed(1)+'%' : 'N/A'}</div><div class="stat-lbl">Gross Margin</div></div>
-        <div class="stat-box"><div class="stat-val" style="font-size:11px">${data.rawData.week52High ? '$'+data.rawData.week52High.toFixed(0) : 'N/A'}</div><div class="stat-lbl">52W High</div></div>
-        <div class="stat-box"><div class="stat-val">${data.rawData.nextEarnings || 'N/A'}</div><div class="stat-lbl">Next Earnings</div></div>
-        <div class="stat-box"><div class="stat-val">${(data.rawData.recommendation?.buy||0)+(data.rawData.recommendation?.strongBuy||0)} Buy</div><div class="stat-lbl">Analysts</div></div>
-      </div>` : ''}
-
-      ${sectionsHTML}
-
-      <div class="agent-mentor">
-        <div style="font-size:9px;color:var(--blue);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;font-weight:700">🔬 Scientific Mentor Verdict — ${ticker}</div>
-        <div class="agent-mentor-text">${mentorText}</div>
-        <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-top:10px">— Claude Research Agent · MaxSmith Capital · ${today}</div>
-      </div>
-
-      <button class="phil-btn" onclick="goToPhil('${ticker}')">🧠 Run Philosophy Engine on ${ticker}</button>
-    </div>`;
   } catch(e) {
-    resultEl.innerHTML = `<div class="not-found"><strong style="color:var(--red)">Connection Error</strong><br><br>Could not reach Research Agent. Check internet connection.</div>`;
+    resultEl.innerHTML = `<div class="not-found"><strong style="color:var(--red)">Connection Error</strong><br><br>${e.message}</div>`;
   }
 }
 
@@ -1431,7 +1505,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderTags();
   fetchMarketData();
   setInterval(fetchMarketData, 5 * 60 * 1000);
-  document.getElementById('agentInput')?.addEventListener('keydown', e => { if(e.key==='Enter') runAgent(); });
+  document.getElementById('agentInput')?.addEventListener('keydown', e => { if(e.key==='Enter') runAgent('fast'); });
   document.getElementById('philInput')?.addEventListener('keydown', e => { if(e.key==='Enter') runPhil(); });
 });
 </script>
