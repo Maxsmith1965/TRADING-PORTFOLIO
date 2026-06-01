@@ -15,21 +15,25 @@ const headers = {
 // ── HTTP HELPER ───────────────────────────────────────────
 function httpsGet(url, reqHeaders = {}) {
   return new Promise((resolve) => {
-    const parsed = new URL(url);
-    const options = {
-      hostname: parsed.hostname,
-      path: parsed.pathname + parsed.search,
-      headers: { 'User-Agent': 'MaxSmithCapital/3.0 (max@zerolondon.uk)', ...reqHeaders },
-      timeout: 8000
-    };
-    https.get(options, (res) => {
-      let data = '';
-      res.on('data', c => data += c);
-      res.on('end', () => {
-        try { resolve(JSON.parse(data)); }
-        catch(e) { resolve(null); }
-      });
-    }).on('error', () => resolve(null)).on('timeout', () => resolve(null));
+    try {
+      const parsed = new URL(url);
+      const options = {
+        hostname: parsed.hostname,
+        path: parsed.pathname + parsed.search,
+        headers: { 'User-Agent': 'MaxSmithCapital/3.0 (max@zerolondon.uk)', ...reqHeaders },
+        timeout: 8000
+      };
+      https.get(options, (res) => {
+        let data = '';
+        res.on('data', c => data += c);
+        res.on('end', () => {
+          try { resolve(JSON.parse(data)); }
+          catch(e) { resolve(null); }
+        });
+      }).on('error', () => resolve(null)).on('timeout', () => resolve(null));
+    } catch(e) {
+      resolve(null);
+    }
   });
 }
 
