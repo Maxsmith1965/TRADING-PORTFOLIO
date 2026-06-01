@@ -186,8 +186,18 @@ async function getSamGov(companyName) {
 // 5. USPTO PATENTS - Technology intelligence
 async function getPatents(companyName) {
   try {
-    const assignee = encodeURIComponent((companyName || '').split(' ').slice(0,2).join(' '));
-    const url = `https://api.patentsview.org/patents/query?q={"_and":[{"_text_phrase":{"assignee_organization":"${(companyName||'').split(' ').slice(0,2).join(' ')}"}},{"_gte":{"patent_date":"${daysAgo(180)}"}}]}&f=["patent_number","patent_title","patent_date","assignee_organization"]&o={"per_page":5}`;
+    const name = (companyName || '').split(' ').slice(0,2).join(' ');
+    if (!name || name.length < 2) return { patents: [], count: 0 };
+    // Use properly encoded URL
+    const query = encodeURIComponent(JSON.stringify({
+      "_and": [
+        {"_text_phrase": {"assignee_organization": name}},
+        {"_gte": {"patent_date": daysAgo(180)}}
+      ]
+    }));
+    const fields = encodeURIComponent(JSON.stringify(["patent_number","patent_title","patent_date","assignee_organization"]));
+    const opts = encodeURIComponent(JSON.stringify({"per_page": 5}));
+    const url = `https://api.patentsview.org/patents/query?q=${query}&f=${fields}&o=${opts}`;
     const data = await httpsGet(url);
     return {
       patents: data?.patents?.slice(0, 5) || [],
