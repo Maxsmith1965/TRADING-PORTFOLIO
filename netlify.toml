@@ -1,15 +1,14 @@
-[build]
-  publish = "public"
-  functions = "netlify/functions"
-  command = "npm install"
-
 [functions]
   node_bundler = "esbuild"
-  included_files = ["netlify/functions/node_modules/**"]
 
-[[headers]]
-  for = "/*"
-  [headers.values]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Headers = "Content-Type"
-    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
+[functions."agent"]
+  timeout = 60
+
+[functions."marketdata"]
+  timeout = 30
+
+[functions."stocks"]
+  timeout = 30
+
+[functions."stocksearch"]
+  timeout = 15
