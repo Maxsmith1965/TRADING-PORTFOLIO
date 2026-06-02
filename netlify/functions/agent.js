@@ -21,7 +21,7 @@ function httpsGet(url, reqHeaders = {}) {
         hostname: parsed.hostname,
         path: parsed.pathname + parsed.search,
         headers: { 'User-Agent': 'MaxSmithCapital/3.0 (max@zerolondon.uk)', ...reqHeaders },
-        timeout: 8000
+        timeout: 5000
       };
       https.get(options, (res) => {
         let data = '';
@@ -30,7 +30,7 @@ function httpsGet(url, reqHeaders = {}) {
           try { resolve(JSON.parse(data)); }
           catch(e) { resolve(null); }
         });
-      }).on('error', () => resolve(null)).on('timeout', () => resolve(null));
+      }).on('error', () => resolve(null)).on('timeout', () => { resolve(null); });
     } catch(e) {
       resolve(null);
     }
@@ -48,7 +48,7 @@ function httpsPost(hostname, path, body, reqHeaders = {}) {
         'User-Agent': 'MaxSmithCapital/3.0',
         ...reqHeaders
       },
-      timeout: 30000
+      timeout: 25000
     };
     const req = https.request(options, (res) => {
       let data = '';
@@ -382,12 +382,17 @@ exports.handler = async (event) => {
     }
 
     if (mode === 'deep') {
-      // DEEP MODE - All sources, full synthesis
-      let finnhub, sec, gov, patents;
-      try { finnhub = await getFinnhub(ticker, FINNHUB); } catch(e) { console.error('Finnhub error:', e.message); finnhub = {}; }
-      try { sec = await getSecData(ticker, ticker, SEC_EMAIL); } catch(e) { console.error('SEC error:', e.message); sec = { form4Filings:0, form4Details:[], activist13D:[], hasActivist:false }; }
-      try { gov = await getGovContracts(ticker); } catch(e) { console.error('Gov error:', e.message); gov = { contracts:[], total:0, count:0 }; }
-      try { patents = await getPatents(ticker); } catch(e) { console.error('Patents error:', e.message); patents = { patents:[], count:0 }; }
+      // DEEP MODE - Fast APIs only to avoid 502 timeout
+      const [finnhubResult, secResult, govResult] = await Promise.allSettled([
+        getFinnhub(ticker, FINNHUB),
+        getSecData(ticker, ticker, SEC_EMAIL),
+        getGovContracts(ticker)
+      ]);
+
+      const finnhub = finnhubResult.value || {};
+      const sec = secResult.value || { form4Filings:0, form4Details:[], activist13D:[], hasActivist:false };
+      const gov = govResult.value || { contracts:[], total:0, count:0 };
+      const patents = { patents:[], count:0 };
 
       const data = { ...finnhub, sec, gov, patents };
       const analysis = ANTHROPIC ? await claudeSynthesize(ticker, data, ANTHROPIC, 'deep') : 'Add ANTHROPIC_KEY to Netlify to enable AI synthesis.';
@@ -442,3 +447,6 @@ exports.handler = async (event) => {
     }) };
   }
 };
+
+
+
