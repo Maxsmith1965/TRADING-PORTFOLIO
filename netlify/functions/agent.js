@@ -40,6 +40,7 @@ function httpsGet(url, reqHeaders = {}) {
 function httpsPost(hostname, path, body, reqHeaders = {}) {
   return new Promise((resolve) => {
     const bodyStr = JSON.stringify(body);
+    const isAnthropic = hostname === 'api.anthropic.com';
     const options = {
       hostname, path, method: 'POST',
       headers: {
@@ -48,7 +49,7 @@ function httpsPost(hostname, path, body, reqHeaders = {}) {
         'User-Agent': 'MaxSmithCapital/3.0',
         ...reqHeaders
       },
-      timeout: 25000
+      timeout: isAnthropic ? 55000 : 10000
     };
     const req = https.request(options, (res) => {
       let data = '';
@@ -314,14 +315,16 @@ MENTOR VERDICT: 4-5 sentences. The definitive recommendation. Buy now, wait, or 
 
   const response = await httpsPost('api.anthropic.com', '/v1/messages', {
     model: 'claude-sonnet-4-6',
-    max_tokens: mode === 'fast' ? 600 : 1200,
+    max_tokens: mode === 'fast' ? 600 : 1000,
     messages: [{ role: 'user', content: prompt }]
   }, {
     'x-api-key': anthropicKey,
     'anthropic-version': '2023-06-01'
   });
 
+  if (!response) return 'API Error: No response from Claude - possible timeout';
   if (response?.error) return `API Error: ${response.error.type} - ${response.error.message}`;
+  if (response?.raw) return `API Error: Unexpected response - ${response.raw}`;
   return response?.content?.[0]?.text || 'Analysis unavailable';
 }
 
@@ -447,6 +450,3 @@ exports.handler = async (event) => {
     }) };
   }
 };
-
-
-
