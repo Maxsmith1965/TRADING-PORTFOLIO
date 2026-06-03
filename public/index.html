@@ -1053,7 +1053,17 @@ async function runAgent(mode) {
 
   try {
     const resp = await fetch(`/.netlify/functions/agent?ticker=${ticker}&mode=${mode}`);
-    const data = await resp.json();
+    const respText = await resp.text();
+    // Sanitise broken UTF-8 characters before parsing
+    const cleanText = respText
+      .replace(/â€"/g, '-')
+      .replace(/â€˜/g, "'")
+      .replace(/â€™/g, "'")
+      .replace(/â€œ/g, '"')
+      .replace(/â€/g, '"')
+      .replace(/Ã©/g, 'e')
+      .replace(/[^\x00-\x7F]/g, ' ');
+    const data = JSON.parse(cleanText);
 
     if (data.error) {
       resultEl.innerHTML = `<div class="not-found"><strong style="color:var(--amber)">Agent Error</strong><br><br>${data.error}</div>`;
