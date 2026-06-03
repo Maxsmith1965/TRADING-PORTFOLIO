@@ -1112,7 +1112,10 @@ async function runAgent(mode) {
           <span style="font-size:8px;padding:2px 6px;background:var(--blueD);color:var(--blue);border-radius:2px;border:1px solid #1a3a5c">Claude AI</span>
         </div>`
       : `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">
-          ${Object.entries(data.sources||{}).map(([k,v]) => `<span style="font-size:8px;padding:2px 6px;background:${v.includes('DETECTED')?'var(--amberD)':'var(--blueD)'};color:${v.includes('DETECTED')?'var(--amber)':'var(--blue)'};border-radius:2px;border:1px solid ${v.includes('DETECTED')?'var(--amber)':'#1a3a5c'}">${k}: ${v}</span>`).join('')}
+          ${Object.entries(data.sources||{}).map(([k,v]) => {
+            const val = String(v || '');
+            return `<span style="font-size:8px;padding:2px 6px;background:${val.includes('DETECTED')?'var(--amberD)':'var(--blueD)'};color:${val.includes('DETECTED')?'var(--amber)':'var(--blue)'};border-radius:2px;border:1px solid ${val.includes('DETECTED')?'var(--amber)':'#1a3a5c'}">${k}: ${val}</span>`;
+          }).join('')}
         </div>`;
 
     if (isFast) {
