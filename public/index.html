@@ -276,15 +276,13 @@ body{background:var(--black);color:var(--white);font-family:-apple-system,BlinkM
 
     <!-- Add form (populated when a result is chosen) -->
     <div id="setAddForm" style="display:none">
+      <div id="setChosen" style="background:var(--goldD);border:1px solid var(--gold);border-radius:4px;padding:10px 12px;margin-bottom:10px">
+        <span style="font-size:16px;font-weight:700;color:var(--gold)" id="setChosenTicker">—</span>
+        <span style="font-size:11px;color:#b8a060;margin-left:8px" id="setChosenName"></span>
+      </div>
+      <input id="setTicker" type="hidden"/>
+      <input id="setName" type="hidden"/>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-        <div>
-          <div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Ticker</div>
-          <input id="setTicker" type="text" oninput="this.value=this.value.toUpperCase()" style="width:100%;background:var(--card2);border:1px solid var(--border2);color:var(--white);font-size:14px;padding:9px 10px;outline:none;border-radius:4px"/>
-        </div>
-        <div>
-          <div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Company Name</div>
-          <input id="setName" type="text" style="width:100%;background:var(--card2);border:1px solid var(--border2);color:var(--white);font-size:13px;padding:9px 10px;outline:none;border-radius:4px"/>
-        </div>
         <div>
           <div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Pot</div>
           <select id="setPot" style="width:100%;background:var(--card2);border:1px solid var(--border2);color:var(--white);font-size:13px;padding:9px 10px;outline:none;border-radius:4px">
@@ -1682,11 +1680,16 @@ async function settingsSearch() {
 
 function openAddForm(ticker, name) {
   document.getElementById('setAddForm').style.display = 'block';
-  document.getElementById('setTicker').value = (ticker || '').toUpperCase();
+  const t = (ticker || '').toUpperCase();
+  document.getElementById('setTicker').value = t;
   document.getElementById('setName').value = name || '';
+  document.getElementById('setChosenTicker').textContent = t;
+  document.getElementById('setChosenName').textContent = name || '';
   // Pre-fill from existing stock if editing
-  const existing = STOCKS.find(s => s.ticker === (ticker || '').toUpperCase());
+  const existing = STOCKS.find(s => s.ticker === t);
   if (existing) {
+    document.getElementById('setName').value = existing.name || name || '';
+    document.getElementById('setChosenName').textContent = existing.name || name || '';
     document.getElementById('setPot').value = existing.pot || 'active';
     document.getElementById('setRisk').value = existing.risk || 'MEDIUM';
     document.getElementById('setBeer').value = existing.beer != null ? existing.beer : '';
@@ -1695,9 +1698,7 @@ function openAddForm(ticker, name) {
     document.getElementById('setIntrinsic').value = existing.intrinsic != null ? existing.intrinsic : '';
     document.getElementById('setEarnings').value = existing.earnings || '';
     document.getElementById('setNote').value = existing.note || '';
-    if (name === '' || !name) document.getElementById('setName').value = existing.name || '';
   } else {
-    // Clear for a fresh add
     document.getElementById('setBeer').value = '';
     document.getElementById('setAlloc').value = '';
     document.getElementById('setSector').value = '';
