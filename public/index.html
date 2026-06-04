@@ -254,6 +254,84 @@ body{background:var(--black);color:var(--white);font-family:-apple-system,BlinkM
   </div>
 </div>
 
+<!-- SETTINGS VIEW -->
+<div id="viewSettings" class="view">
+  <div style="background:linear-gradient(135deg,#1a1505 0%,#0f0c02 100%);border:1px solid #3a2f0a;border-left:4px solid var(--gold);padding:16px;margin-bottom:14px;border-radius:0 4px 4px 0">
+    <div style="font-size:9px;color:var(--gold);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;font-weight:700">⚙️ Watchlist Settings</div>
+    <div style="font-size:17px;font-weight:700;color:var(--white);margin-bottom:4px">Add &amp; Manage Tickers</div>
+    <div style="font-size:11px;color:#b8a060;line-height:1.6">Search by company name or ticker. Changes save permanently to the cloud — on every device, every time.</div>
+  </div>
+
+  <div id="settingsStatus" style="display:none;font-size:11px;padding:10px 14px;border-radius:4px;margin-bottom:10px"></div>
+
+  <!-- Search to add -->
+  <div style="background:var(--card);border:1px solid var(--border);padding:14px;border-radius:4px;margin-bottom:12px">
+    <div style="font-size:9px;color:var(--gold);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;font-weight:700">➕ Add New Stock</div>
+    <div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Search Company Name or Ticker</div>
+    <div style="display:flex;gap:6px;margin-bottom:8px">
+      <input id="setSearch" type="text" placeholder="e.g. Constellation or CEG" oninput="this.value=this.value.toUpperCase()" style="flex:1;background:var(--card2);border:1px solid var(--border2);color:var(--white);font-size:14px;padding:10px 12px;outline:none;border-radius:4px"/>
+      <button onclick="settingsSearch()" style="background:var(--gold);color:#000;border:none;font-size:13px;font-weight:700;padding:10px 16px;cursor:pointer;border-radius:4px">Search</button>
+    </div>
+    <div id="setSearchResults" style="margin-bottom:8px"></div>
+
+    <!-- Add form (populated when a result is chosen) -->
+    <div id="setAddForm" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Ticker</div>
+          <input id="setTicker" type="text" oninput="this.value=this.value.toUpperCase()" style="width:100%;background:var(--card2);border:1px solid var(--border2);color:var(--white);font-size:14px;padding:9px 10px;outline:none;border-radius:4px"/>
+        </div>
+        <div>
+          <div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Company Name</div>
+          <input id="setName" type="text" style="width:100%;background:var(--card2);border:1px solid var(--border2);color:var(--white);font-size:13px;padding:9px 10px;outline:none;border-radius:4px"/>
+        </div>
+        <div>
+          <div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Pot</div>
+          <select id="setPot" style="width:100%;background:var(--card2);border:1px solid var(--border2);color:var(--white);font-size:13px;padding:9px 10px;outline:none;border-radius:4px">
+            <option value="active">⚡ Active Trading</option>
+            <option value="blue">🏛 Blue Chip</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Risk</div>
+          <select id="setRisk" style="width:100%;background:var(--card2);border:1px solid var(--border2);color:var(--white);font-size:13px;padding:9px 10px;outline:none;border-radius:4px">
+            <option>MEDIUM</option><option>MED-HIGH</option><option>HIGH</option><option>VERY HIGH</option><option>EXTREME</option><option>LOW</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Beer % (intrinsic value)</div>
+          <input id="setBeer" type="number" min="1" max="100" placeholder="55" style="width:100%;background:var(--card2);border:1px solid var(--border2);color:var(--white);font-size:14px;padding:9px 10px;outline:none;border-radius:4px"/>
+        </div>
+        <div>
+          <div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Max Allocation %</div>
+          <input id="setAlloc" type="number" min="1" max="20" placeholder="5" style="width:100%;background:var(--card2);border:1px solid var(--border2);color:var(--white);font-size:14px;padding:9px 10px;outline:none;border-radius:4px"/>
+        </div>
+        <div>
+          <div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Sector</div>
+          <input id="setSector" type="text" placeholder="AI Infrastructure" style="width:100%;background:var(--card2);border:1px solid var(--border2);color:var(--white);font-size:13px;padding:9px 10px;outline:none;border-radius:4px"/>
+        </div>
+        <div>
+          <div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">AlphaSpread Intrinsic $</div>
+          <input id="setIntrinsic" type="number" step="0.01" placeholder="optional" style="width:100%;background:var(--card2);border:1px solid var(--border2);color:var(--white);font-size:14px;padding:9px 10px;outline:none;border-radius:4px"/>
+        </div>
+      </div>
+      <div style="margin-bottom:8px">
+        <div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Next Earnings Date</div>
+        <input id="setEarnings" type="date" style="width:100%;background:var(--card2);border:1px solid var(--border2);color:var(--white);font-size:13px;padding:9px 10px;outline:none;border-radius:4px"/>
+      </div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Note / Thesis</div>
+        <input id="setNote" type="text" placeholder="Key thesis and entry conditions" style="width:100%;background:var(--card2);border:1px solid var(--border2);color:var(--white);font-size:13px;padding:9px 10px;outline:none;border-radius:4px"/>
+      </div>
+      <button onclick="settingsSave()" style="width:100%;background:var(--gold);color:#000;border:none;font-size:14px;font-weight:700;letter-spacing:1px;padding:13px;cursor:pointer;border-radius:4px">💾 Save to Watchlist</button>
+    </div>
+  </div>
+
+  <!-- Current watchlist list -->
+  <div style="font-size:9px;color:var(--gold);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;font-weight:700">Current Watchlist</div>
+  <div id="settingsList"></div>
+</div>
+
 <!-- BOTTOM TAB BAR -->
 <div class="tab-bar">
   <button class="tab-btn active" id="tabWatchlist" onclick="showView('watchlist')">
@@ -268,11 +346,17 @@ body{background:var(--black);color:var(--white);font-family:-apple-system,BlinkM
     <span class="tab-icon">🧠</span>
     <span class="tab-label">Philosophy</span>
   </button>
+  <button class="tab-btn" id="tabSettings" onclick="showView('settings')">
+    <span class="tab-icon">⚙️</span>
+    <span class="tab-label">Settings</span>
+  </button>
 </div>
 
 <script>
 // ── STOCK DATABASE ────────────────────────────────────────
-const STOCKS = [
+// HARDCODED_STOCKS is the permanent fallback - app NEVER breaks even if cloud fails.
+// Cloud-added stocks (via Settings) merge on top of this baseline at load.
+const HARDCODED_STOCKS = [
   // BLUE CHIPS
   {
     ticker:'NVDA',name:'Nvidia Corp',pot:'blue',alloc:15,beer:60,froth:40,
@@ -724,6 +808,46 @@ const STOCKS = [
   }
 ];
 
+// Live working list - starts as the hardcoded fallback, then cloud additions merge on top.
+let STOCKS = [...HARDCODED_STOCKS];
+
+// Merge cloud-stored custom stocks on top of the hardcoded baseline.
+// If the cloud fetch fails for any reason, we keep the hardcoded 26 - app never breaks.
+async function loadCloudStocks() {
+  try {
+    const resp = await fetch('/.netlify/functions/stocks');
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const cloud = [...(data.blueChips || []), ...(data.activeStocks || [])];
+    if (!cloud.length) return;
+    // Start from hardcoded baseline, then apply cloud additions/edits by ticker
+    const merged = [...HARDCODED_STOCKS];
+    cloud.forEach(cs => {
+      if (!cs || !cs.ticker) return;
+      const i = merged.findIndex(s => s.ticker === cs.ticker);
+      if (i >= 0) {
+        // Cloud edit overrides hardcoded fields that are provided
+        merged[i] = { ...merged[i], ...cs };
+      } else {
+        // Brand new cloud-added stock - fill sensible defaults for fields the detail view expects
+        merged.push({
+          bull: [], bear: [], checks: [], reason: cs.note || '',
+          mentor: '', signal: cs.signal || 'CAUTION', score: cs.score || 50,
+          froth: cs.froth != null ? cs.froth : (100 - (cs.beer || 50)),
+          ...cs
+        });
+      }
+    });
+    STOCKS = merged;
+    renderWatchlist();
+    renderTags();
+    if (typeof renderSettingsList === 'function') renderSettingsList();
+  } catch(e) {
+    // Silent fail - hardcoded list already loaded, app stays fully functional
+    console.log('Cloud stocks unavailable, using built-in list');
+  }
+}
+
 // ── LIVE DATA ─────────────────────────────────────────────
 let liveData = {};
 
@@ -799,11 +923,13 @@ function showView(name) {
     watchlist: ['viewWatchlist','tabWatchlist'],
     agent: ['viewAgent','tabAgent'],
     philosophy: ['viewPhil','tabPhil'],
+    settings: ['viewSettings','tabSettings'],
     detail: ['viewDetail', null]
   };
   const [viewId, tabId] = viewMap[name] || [];
   if (viewId) document.getElementById(viewId)?.classList.add('active');
   if (tabId) document.getElementById(tabId)?.classList.add('active');
+  if (name === 'settings' && typeof renderSettingsList === 'function') renderSettingsList();
 }
 
 // ── WATCHLIST RENDER ──────────────────────────────────────
@@ -1513,13 +1639,153 @@ async function runPhil() {
 }
 
 // ── INIT ──────────────────────────────────────────────────
+// ── SETTINGS: ADD / EDIT / DELETE TICKERS ─────────────────
+function settingsStatus(msg, ok) {
+  const el = document.getElementById('settingsStatus');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.style.background = ok ? 'var(--greenD)' : 'var(--redD)';
+  el.style.color = ok ? 'var(--green)' : 'var(--red)';
+  el.style.border = '1px solid ' + (ok ? 'var(--green)' : 'var(--red)');
+  setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+async function settingsSearch() {
+  const q = (document.getElementById('setSearch')?.value || '').trim();
+  if (!q) return;
+  const box = document.getElementById('setSearchResults');
+  if (box) box.innerHTML = '<div style="font-size:10px;color:var(--muted2);padding:6px">Searching...</div>';
+  try {
+    const resp = await fetch('/.netlify/functions/stocksearch?q=' + encodeURIComponent(q));
+    const data = await resp.json();
+    const results = (data.result || []).slice(0, 6);
+    if (!results.length) {
+      if (box) box.innerHTML = '<div style="font-size:10px;color:var(--amber);padding:6px">No matches. You can still type the ticker manually below.</div>';
+      // Still open the form so they can add manually
+      openAddForm(q, '');
+      return;
+    }
+    if (box) box.innerHTML = results.map(r => {
+      const sym = String(r.symbol || '').replace(/'/g, '');
+      const desc = String(r.description || '').replace(/'/g, '');
+      return `<div onclick="openAddForm('${sym}','${desc}')" style="padding:9px 11px;background:var(--card2);border:1px solid var(--border);border-radius:4px;cursor:pointer;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center">
+        <div><span style="font-size:13px;font-weight:700;color:var(--gold)">${sym}</span> <span style="font-size:11px;color:var(--muted2);margin-left:6px">${desc}</span></div>
+        <span style="font-size:14px;color:var(--gold)">+</span>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    if (box) box.innerHTML = '<div style="font-size:10px;color:var(--red);padding:6px">Search failed. Type the ticker manually below.</div>';
+    openAddForm(q, '');
+  }
+}
+
+function openAddForm(ticker, name) {
+  document.getElementById('setAddForm').style.display = 'block';
+  document.getElementById('setTicker').value = (ticker || '').toUpperCase();
+  document.getElementById('setName').value = name || '';
+  // Pre-fill from existing stock if editing
+  const existing = STOCKS.find(s => s.ticker === (ticker || '').toUpperCase());
+  if (existing) {
+    document.getElementById('setPot').value = existing.pot || 'active';
+    document.getElementById('setRisk').value = existing.risk || 'MEDIUM';
+    document.getElementById('setBeer').value = existing.beer != null ? existing.beer : '';
+    document.getElementById('setAlloc').value = existing.alloc != null ? existing.alloc : '';
+    document.getElementById('setSector').value = existing.sector || '';
+    document.getElementById('setIntrinsic').value = existing.intrinsic != null ? existing.intrinsic : '';
+    document.getElementById('setEarnings').value = existing.earnings || '';
+    document.getElementById('setNote').value = existing.note || '';
+    if (name === '' || !name) document.getElementById('setName').value = existing.name || '';
+  } else {
+    // Clear for a fresh add
+    document.getElementById('setBeer').value = '';
+    document.getElementById('setAlloc').value = '';
+    document.getElementById('setSector').value = '';
+    document.getElementById('setIntrinsic').value = '';
+    document.getElementById('setEarnings').value = '';
+    document.getElementById('setNote').value = '';
+  }
+  document.getElementById('setAddForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+async function settingsSave() {
+  const ticker = (document.getElementById('setTicker')?.value || '').trim().toUpperCase();
+  const name = (document.getElementById('setName')?.value || '').trim();
+  if (!ticker) { settingsStatus('Ticker is required', false); return; }
+  const beer = parseInt(document.getElementById('setBeer')?.value) || 50;
+  const stock = {
+    ticker,
+    name: name || ticker,
+    pot: document.getElementById('setPot')?.value || 'active',
+    risk: document.getElementById('setRisk')?.value || 'MEDIUM',
+    beer,
+    froth: 100 - beer,
+    alloc: parseInt(document.getElementById('setAlloc')?.value) || 5,
+    sector: (document.getElementById('setSector')?.value || '').trim(),
+    intrinsic: parseFloat(document.getElementById('setIntrinsic')?.value) || null,
+    earnings: document.getElementById('setEarnings')?.value || null,
+    note: (document.getElementById('setNote')?.value || '').trim()
+  };
+  try {
+    settingsStatus('Saving ' + ticker + '...', true);
+    const resp = await fetch('/.netlify/functions/stocks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(stock)
+    });
+    if (!resp.ok) throw new Error('Save failed');
+    await loadCloudStocks();
+    settingsStatus('✓ ' + ticker + ' saved to watchlist', true);
+    document.getElementById('setAddForm').style.display = 'none';
+    document.getElementById('setSearch').value = '';
+    document.getElementById('setSearchResults').innerHTML = '';
+  } catch(e) {
+    settingsStatus('Error saving: ' + e.message, false);
+  }
+}
+
+async function settingsDelete(ticker) {
+  if (!confirm('Remove ' + ticker + ' from your watchlist?')) return;
+  try {
+    const resp = await fetch('/.netlify/functions/stocks?ticker=' + ticker, { method: 'DELETE' });
+    if (!resp.ok) throw new Error('Delete failed');
+    await loadCloudStocks();
+    settingsStatus('✓ ' + ticker + ' removed', true);
+  } catch(e) {
+    settingsStatus('Error removing: ' + e.message, false);
+  }
+}
+
+function renderSettingsList() {
+  const el = document.getElementById('settingsList');
+  if (!el) return;
+  if (!STOCKS.length) { el.innerHTML = '<div style="font-size:11px;color:var(--muted2);padding:16px;text-align:center">No stocks</div>'; return; }
+  const isHardcoded = (t) => HARDCODED_STOCKS.some(h => h.ticker === t);
+  el.innerHTML = STOCKS.map(s => {
+    const potIcon = s.pot === 'blue' ? '🏛' : '⚡';
+    const col = s.pot === 'blue' ? 'var(--gold)' : 'var(--blue)';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 13px;background:var(--card);border:1px solid var(--border);border-radius:4px;margin-bottom:5px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:${col}">${potIcon} ${s.ticker} <span style="font-size:10px;color:var(--muted2);font-weight:400">${s.name||''}</span></div>
+        <div style="font-size:9px;color:var(--muted2);margin-top:2px">🍺${s.beer}% · ${s.risk} · ${s.sector||'—'} ${s.intrinsic?'· $'+s.intrinsic:''}</div>
+      </div>
+      <div style="display:flex;gap:5px;flex-shrink:0;margin-left:8px">
+        <button onclick="openAddForm('${s.ticker}','${(s.name||'').replace(/'/g,'')}');showView('settings')" style="background:var(--blueD);color:var(--blue);border:1px solid var(--blue);padding:5px 10px;font-size:10px;font-weight:700;cursor:pointer;border-radius:3px">Edit</button>
+        <button onclick="settingsDelete('${s.ticker}')" style="background:var(--redD);color:var(--red);border:1px solid var(--red);padding:5px 9px;font-size:10px;font-weight:700;cursor:pointer;border-radius:3px">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   renderWatchlist();
   renderTags();
   fetchMarketData();
+  loadCloudStocks();
   setInterval(fetchMarketData, 5 * 60 * 1000);
   document.getElementById('agentInput')?.addEventListener('keydown', e => { if(e.key==='Enter') runAgent('fast'); });
   document.getElementById('philInput')?.addEventListener('keydown', e => { if(e.key==='Enter') runPhil(); });
+  document.getElementById('setSearch')?.addEventListener('keydown', e => { if(e.key==='Enter') settingsSearch(); });
 });
 </script>
 </body>
