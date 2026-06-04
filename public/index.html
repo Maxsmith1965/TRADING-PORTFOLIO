@@ -809,40 +809,27 @@ const HARDCODED_STOCKS = [
 // Live working list - starts as the hardcoded fallback, then cloud additions merge on top.
 let STOCKS = [...HARDCODED_STOCKS];
 
-// Merge cloud-stored custom stocks on top of the hardcoded baseline.
-// If the cloud fetch fails for any reason, we keep the hardcoded 26 - app never breaks.
-async function loadCloudStocks() {
+// Load watchlist from the cloud (Netlify Blobs via stocks.js).
+// Hardcoded 26 load first as instant fallback, then cloud data replaces them.
+// If cloud fails, the hardcoded list stays - watchlist can never be empty.
+async function loadLocalStocks() {
   try {
     const resp = await fetch('/.netlify/functions/stocks');
     if (!resp.ok) return;
     const data = await resp.json();
     const cloud = [...(data.blueChips || []), ...(data.activeStocks || [])];
     if (!cloud.length) return;
-    // Start from hardcoded baseline, then apply cloud additions/edits by ticker
-    const merged = [...HARDCODED_STOCKS];
-    cloud.forEach(cs => {
-      if (!cs || !cs.ticker) return;
-      const i = merged.findIndex(s => s.ticker === cs.ticker);
-      if (i >= 0) {
-        // Cloud edit overrides hardcoded fields that are provided
-        merged[i] = { ...merged[i], ...cs };
-      } else {
-        // Brand new cloud-added stock - fill sensible defaults for fields the detail view expects
-        merged.push({
-          bull: [], bear: [], checks: [], reason: cs.note || '',
-          mentor: '', signal: cs.signal || 'CAUTION', score: cs.score || 50,
-          froth: cs.froth != null ? cs.froth : (100 - (cs.beer || 50)),
-          ...cs
-        });
-      }
-    });
-    STOCKS = merged;
+    STOCKS = cloud.map(cs => ({
+      bull: [], bear: [], checks: [], reason: cs.note || '',
+      mentor: '', signal: cs.signal || 'CAUTION', score: cs.score || 50,
+      froth: cs.froth != null ? cs.froth : (100 - (cs.beer || 50)),
+      ...cs
+    }));
     renderWatchlist();
     renderTags();
     if (typeof renderSettingsList === 'function') renderSettingsList();
   } catch(e) {
-    // Silent fail - hardcoded list already loaded, app stays fully functional
-    console.log('Cloud stocks unavailable, using built-in list');
+    console.log('Cloud watchlist unavailable, using built-in list');
   }
 }
 
@@ -1734,8 +1721,9 @@ async function settingsSave() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(stock)
     });
-    if (!resp.ok) throw new Error('Save failed');
-    await loadCloudStocks();
+    const result = await resp.json().catch(() => ({}));
+    if (!resp.ok || result.error) throw new Error((result.error || ('HTTP ' + resp.status)) + (result.detail ? ': ' + result.detail : ''));
+    await loadLocalStocks();
     settingsStatus('✓ ' + ticker + ' saved to watchlist', true);
     document.getElementById('setAddForm').style.display = 'none';
     document.getElementById('setSearch').value = '';
@@ -1749,8 +1737,9 @@ async function settingsDelete(ticker) {
   if (!confirm('Remove ' + ticker + ' from your watchlist?')) return;
   try {
     const resp = await fetch('/.netlify/functions/stocks?ticker=' + ticker, { method: 'DELETE' });
-    if (!resp.ok) throw new Error('Delete failed');
-    await loadCloudStocks();
+    const result = await resp.json().catch(() => ({}));
+    if (!resp.ok || result.error) throw new Error(result.error || ('HTTP ' + resp.status));
+    await loadLocalStocks();
     settingsStatus('✓ ' + ticker + ' removed', true);
   } catch(e) {
     settingsStatus('Error removing: ' + e.message, false);
@@ -1782,7 +1771,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderWatchlist();
   renderTags();
   fetchMarketData();
-  loadCloudStocks();
+  loadLocalStocks();
   setInterval(fetchMarketData, 5 * 60 * 1000);
   document.getElementById('agentInput')?.addEventListener('keydown', e => { if(e.key==='Enter') runAgent('fast'); });
   document.getElementById('philInput')?.addEventListener('keydown', e => { if(e.key==='Enter') runPhil(); });
