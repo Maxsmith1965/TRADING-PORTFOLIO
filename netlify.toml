@@ -1,8 +1,10 @@
 [build]
+  command = "npm install"
   publish = "public"
 
 [functions]
   node_bundler = "esbuild"
+  external_node_modules = ["@netlify/blobs"]
 
 [functions."agent"]
   timeout = 60
