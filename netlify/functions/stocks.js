@@ -1,6 +1,6 @@
 // ── MAXSMITH CAPITAL STOCK DATABASE ─────────────────────
-// Official @netlify/blobs package. Blobs is enabled on the site,
-// so getStore() auto-configures from the runtime context.
+// @netlify/blobs with MANUAL config fallback.
+// Reads MY_SITE_ID + MY_BLOBS_TOKEN env vars when auto-context is missing.
 
 const { getStore } = require('@netlify/blobs');
 
@@ -55,12 +55,26 @@ const DEFAULT_STOCKS = {
   ]
 };
 
+// Open store: try automatic mode, then fall back to manual siteID+token.
+function openStore() {
+  try {
+    return getStore(STORE);
+  } catch (e) {
+    const siteID = process.env.MY_SITE_ID;
+    const token  = process.env.MY_BLOBS_TOKEN;
+    if (!siteID || !token) {
+      throw new Error('Auto-config failed and MY_SITE_ID / MY_BLOBS_TOKEN not set');
+    }
+    return getStore({ name: STORE, siteID, token });
+  }
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
 
   let store;
   try {
-    store = getStore(STORE);
+    store = openStore();
   } catch (e) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'Store init failed', detail: e.message }) };
   }
