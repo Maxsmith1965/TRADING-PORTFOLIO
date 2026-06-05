@@ -1,8 +1,8 @@
 // ── MAXSMITH CAPITAL STOCK DATABASE ─────────────────────
-// Netlify Blobs via built-in HTTP API. No npm dependency.
-// Detailed errors so we can see exactly what fails.
+// Official @netlify/blobs package. Blobs is enabled on the site,
+// so getStore() auto-configures from the runtime context.
 
-const https = require('https');
+const { getStore } = require('@netlify/blobs');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -55,67 +55,24 @@ const DEFAULT_STOCKS = {
   ]
 };
 
-// Read Netlify's auto-injected Blobs context
-function getCtx() {
-  const raw = process.env.NETLIFY_BLOBS_CONTEXT;
-  if (!raw) return null;
-  try {
-    return JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
-  } catch (e) {
-    try { return JSON.parse(raw); } catch (e2) { return null; }
-  }
-}
-
-function blobReq(method, bodyObj) {
-  return new Promise((resolve) => {
-    const ctx = getCtx();
-    if (!ctx || !ctx.url && !ctx.edgeURL) {
-      resolve({ ok: false, status: 0, reason: 'No NETLIFY_BLOBS_CONTEXT - Blobs not enabled on site' });
-      return;
-    }
-    const base = (ctx.edgeURL || ctx.url).replace('https://', '');
-    const siteID = ctx.siteID;
-    const token = ctx.token;
-    const path = `/${siteID}/${STORE}/${KEY}`;
-    const body = bodyObj ? JSON.stringify(bodyObj) : null;
-    const options = {
-      hostname: base,
-      path,
-      method,
-      headers: { 'Authorization': `Bearer ${token}` },
-      timeout: 6000
-    };
-    if (body) {
-      options.headers['Content-Type'] = 'application/json';
-      options.headers['Content-Length'] = Buffer.byteLength(body);
-    }
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', c => data += c);
-      res.on('end', () => resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, data }));
-    });
-    req.on('error', (e) => resolve({ ok: false, status: 0, reason: e.message }));
-    req.on('timeout', () => { req.destroy(); resolve({ ok: false, status: 0, reason: 'timeout' }); });
-    if (body) req.write(body);
-    req.end();
-  });
-}
-
-async function readStocks() {
-  const r = await blobReq('GET');
-  if (r.ok && r.data) {
-    try { const d = JSON.parse(r.data); if (d.blueChips || d.activeStocks) return d; } catch (e) {}
-  }
-  return null;
-}
-
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
 
+  let store;
+  try {
+    store = getStore(STORE);
+  } catch (e) {
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Store init failed', detail: e.message }) };
+  }
+
   if (event.httpMethod === 'GET') {
-    const data = await readStocks();
-    if (data) return { statusCode: 200, headers, body: JSON.stringify(data) };
-    const seed = await blobReq('PUT', DEFAULT_STOCKS);
+    try {
+      const data = await store.get(KEY, { type: 'json' });
+      if (data && (data.blueChips || data.activeStocks)) {
+        return { statusCode: 200, headers, body: JSON.stringify(data) };
+      }
+    } catch (e) {}
+    try { await store.setJSON(KEY, DEFAULT_STOCKS); } catch (e) {}
     return { statusCode: 200, headers, body: JSON.stringify(DEFAULT_STOCKS) };
   }
 
@@ -125,8 +82,9 @@ exports.handler = async (event) => {
       if (!stock.ticker) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Ticker required' }) };
       stock.ticker = String(stock.ticker).toUpperCase();
 
-      let data = await readStocks();
-      if (!data) data = JSON.parse(JSON.stringify(DEFAULT_STOCKS));
+      let data;
+      try { data = await store.get(KEY, { type: 'json' }); } catch (e) { data = null; }
+      if (!data || (!data.blueChips && !data.activeStocks)) data = JSON.parse(JSON.stringify(DEFAULT_STOCKS));
       if (!Array.isArray(data.blueChips)) data.blueChips = [];
       if (!Array.isArray(data.activeStocks)) data.activeStocks = [];
 
@@ -137,11 +95,10 @@ exports.handler = async (event) => {
       if (idx >= 0) data[bucket][idx] = { ...data[bucket][idx], ...stock };
       else data[bucket].push(stock);
 
-      const w = await blobReq('PUT', data);
-      if (!w.ok) return { statusCode: 500, headers, body: JSON.stringify({ error: 'Write failed', detail: w.reason || ('status ' + w.status) }) };
+      await store.setJSON(KEY, data);
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, stock }) };
     } catch (e) {
-      return { statusCode: 500, headers, body: JSON.stringify({ error: 'Save error: ' + e.message }) };
+      return { statusCode: 500, headers, body: JSON.stringify({ error: 'Write failed', detail: e.message }) };
     }
   }
 
@@ -149,15 +106,15 @@ exports.handler = async (event) => {
     try {
       const ticker = String(event.queryStringParameters?.ticker || '').toUpperCase();
       if (!ticker) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Ticker required' }) };
-      let data = await readStocks();
+      let data;
+      try { data = await store.get(KEY, { type: 'json' }); } catch (e) { data = null; }
       if (!data) data = JSON.parse(JSON.stringify(DEFAULT_STOCKS));
       data.blueChips = (data.blueChips || []).filter(s => s.ticker !== ticker);
       data.activeStocks = (data.activeStocks || []).filter(s => s.ticker !== ticker);
-      const w = await blobReq('PUT', data);
-      if (!w.ok) return { statusCode: 500, headers, body: JSON.stringify({ error: 'Write failed', detail: w.reason || ('status ' + w.status) }) };
+      await store.setJSON(KEY, data);
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, ticker }) };
     } catch (e) {
-      return { statusCode: 500, headers, body: JSON.stringify({ error: 'Delete error: ' + e.message }) };
+      return { statusCode: 500, headers, body: JSON.stringify({ error: 'Delete failed', detail: e.message }) };
     }
   }
 
