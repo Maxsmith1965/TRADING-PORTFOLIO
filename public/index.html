@@ -809,6 +809,25 @@ const HARDCODED_STOCKS = [
 // Live working list - starts as the hardcoded fallback, then cloud additions merge on top.
 let STOCKS = [...HARDCODED_STOCKS];
 
+// ── PORTFOLIO POT CONFIG ──────────────────────────────────
+// Total capital split into three pots (from the Beer & Froth framework).
+// Easy to update here if capital grows.
+const PORTFOLIO = {
+  total: 50000,
+  bluePot: 30000,    // 60% - Blue Chip Base (9 holdings)
+  activePot: 15000,  // 30% - Active Trading
+  profitPot: 5000    // 10% - ring-fenced
+};
+
+// Trading rules
+const RULES = {
+  activeStopPct: 8,      // mechanical stop for active trades
+  activeTargetPct: 10,   // profit target for active trades
+  highRiskStopPct: 7,    // tighter stop for HIGH/VERY HIGH/EXTREME risk
+  maxActivePosPct: 10,   // max % of active pot per position (5% for HIGH risk)
+  maxBluePosPct: 15      // max % of blue pot per blue chip
+};
+
 // Load watchlist from the cloud (Netlify Blobs via stocks.js).
 // Hardcoded 26 load first as instant fallback, then cloud data replaces them.
 // If cloud fails, the hardcoded list stays - watchlist can never be empty.
@@ -979,6 +998,57 @@ function renderCard(s) {
 }
 
 // ── STOCK DETAIL ──────────────────────────────────────────
+// ── TRADE MANAGER ─────────────────────────────────────────
+// Auto-calculates position size, stop loss and profit target from the LIVE price.
+function calcTrade(s, livePrice) {
+  const isBlue = s.pot === 'blue';
+  const isHighRisk = ['HIGH','VERY HIGH','EXTREME'].includes(s.risk);
+  const pot = isBlue ? PORTFOLIO.bluePot : PORTFOLIO.activePot;
+  const potName = isBlue ? 'Blue Chip Pot' : 'Active Pot';
+
+  // Position size - use the stock's own allocation %, capped by the rules
+  let allocPct = s.alloc || 5;
+  const maxPct = isBlue ? RULES.maxBluePosPct : (isHighRisk ? 5 : RULES.maxActivePosPct);
+  if (allocPct > maxPct) allocPct = maxPct;
+  const positionGBP = Math.round(pot * (allocPct / 100));
+  const shares = livePrice ? (positionGBP / livePrice) : 0;
+
+  // Stop loss
+  let stopPct, stopPrice, riskGBP;
+  if (isBlue) {
+    stopPct = null; // thesis-based, no mechanical stop
+    stopPrice = null;
+    riskGBP = null;
+  } else {
+    stopPct = isHighRisk ? RULES.highRiskStopPct : RULES.activeStopPct;
+    stopPrice = livePrice ? livePrice * (1 - stopPct/100) : null;
+    riskGBP = Math.round(positionGBP * (stopPct/100));
+  }
+
+  // Profit target
+  let targetPct, targetPrice, gainGBP;
+  if (isBlue) {
+    targetPct = null; // let it run
+    targetPrice = null;
+    gainGBP = null;
+  } else {
+    targetPct = RULES.activeTargetPct;
+    targetPrice = livePrice ? livePrice * (1 + targetPct/100) : null;
+    gainGBP = Math.round(positionGBP * (targetPct/100));
+  }
+
+  // Risk/reward ratio (active only)
+  const rr = (riskGBP && gainGBP) ? (gainGBP / riskGBP) : null;
+
+  return { isBlue, isHighRisk, pot, potName, allocPct, positionGBP, shares,
+           stopPct, stopPrice, riskGBP, targetPct, targetPrice, gainGBP, rr };
+}
+
+function fmtGBP(n) {
+  if (n == null) return '—';
+  return '£' + Math.round(n).toLocaleString('en-GB');
+}
+
 function showDetail(ticker) {
   const s = STOCKS.find(x => x.ticker === ticker);
   if (!s) return;
@@ -1014,6 +1084,82 @@ function showDetail(ticker) {
 
   const icoMap = {pass:'✓',fail:'✕',warn:'!',neutral:'–'};
   const icoColMap = {pass:'var(--green)',fail:'var(--red)',warn:'var(--amber)',neutral:'var(--muted2)'};
+
+  // ── Build Trade Manager card ──
+  const t = calcTrade(s, live?.priceRaw);
+  let tradeHTML = '';
+  if (live?.priceRaw) {
+    if (t.isBlue) {
+      // Blue chip - no mechanical stop, no target
+      tradeHTML = `<div style="background:var(--card);border:1px solid var(--gold);border-radius:4px;margin-bottom:10px;overflow:hidden">
+        <div style="background:var(--goldD);padding:10px 14px;border-bottom:1px solid var(--gold)">
+          <div style="font-size:10px;color:var(--gold);letter-spacing:2px;text-transform:uppercase;font-weight:700">📊 Trade Manager · Blue Chip</div>
+        </div>
+        <div style="padding:14px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+            <div style="background:var(--card2);padding:12px;border-radius:4px;text-align:center">
+              <div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Entry (Live)</div>
+              <div style="font-size:18px;font-weight:700;color:var(--white)">${live.price}</div>
+            </div>
+            <div style="background:var(--card2);padding:12px;border-radius:4px;text-align:center">
+              <div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Position Size</div>
+              <div style="font-size:18px;font-weight:700;color:var(--gold)">${fmtGBP(t.positionGBP)}</div>
+              <div style="font-size:9px;color:var(--muted2);margin-top:2px">${t.allocPct}% of ${t.potName} · ~${t.shares.toFixed(1)} shares</div>
+            </div>
+          </div>
+          <div style="background:var(--greenD);border:1px solid rgba(61,158,110,.3);border-radius:4px;padding:12px">
+            <div style="font-size:10px;color:var(--green);font-weight:700;margin-bottom:6px">🏛 BLUE CHIP RULES</div>
+            <div style="font-size:11px;color:#9aa0a8;line-height:1.7">
+              <strong style="color:var(--white)">No mechanical stop loss</strong> — exit only if the investment thesis breaks, not on price moves.<br>
+              <strong style="color:var(--white)">No profit target</strong> — let winners run and compound. DCA monthly.<br>
+              Blue chips can fall 30-50% and recover (NVDA fell 67% in 2022). Position sizing is your risk control, not stops.
+            </div>
+          </div>
+        </div>
+      </div>`;
+    } else {
+      // Active trade - full stop/target/position calc
+      const rrCol = t.rr >= 1.2 ? 'var(--green)' : t.rr >= 1 ? 'var(--amber)' : 'var(--red)';
+      tradeHTML = `<div style="background:var(--card);border:1px solid var(--blue);border-radius:4px;margin-bottom:10px;overflow:hidden">
+        <div style="background:var(--blueD);padding:10px 14px;border-bottom:1px solid var(--blue)">
+          <div style="font-size:10px;color:var(--blue);letter-spacing:2px;text-transform:uppercase;font-weight:700">📊 Trade Manager · Active Trade</div>
+        </div>
+        <div style="padding:14px">
+          <!-- Entry + Position -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div style="background:var(--card2);padding:12px;border-radius:4px;text-align:center">
+              <div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Entry (Live)</div>
+              <div style="font-size:18px;font-weight:700;color:var(--white)">${live.price}</div>
+            </div>
+            <div style="background:var(--card2);padding:12px;border-radius:4px;text-align:center">
+              <div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Position Size</div>
+              <div style="font-size:18px;font-weight:700;color:var(--blue)">${fmtGBP(t.positionGBP)}</div>
+              <div style="font-size:9px;color:var(--muted2);margin-top:2px">${t.allocPct}% of pot · ~${t.shares.toFixed(1)} shares</div>
+            </div>
+          </div>
+          <!-- Stop + Target -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div style="background:var(--redD);border:1px solid rgba(201,74,74,.3);padding:12px;border-radius:4px;text-align:center">
+              <div style="font-size:9px;color:var(--red);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">🛑 Stop Loss −${t.stopPct}%</div>
+              <div style="font-size:18px;font-weight:700;color:var(--red)">$${t.stopPrice.toFixed(2)}</div>
+              <div style="font-size:9px;color:#c98080;margin-top:2px">Risk: ${fmtGBP(t.riskGBP)}</div>
+            </div>
+            <div style="background:var(--greenD);border:1px solid rgba(61,158,110,.3);padding:12px;border-radius:4px;text-align:center">
+              <div style="font-size:9px;color:var(--green);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">🎯 Target +${t.targetPct}%</div>
+              <div style="font-size:18px;font-weight:700;color:var(--green)">$${t.targetPrice.toFixed(2)}</div>
+              <div style="font-size:9px;color:#80c0a0;margin-top:2px">Gain: ${fmtGBP(t.gainGBP)}</div>
+            </div>
+          </div>
+          <!-- Risk/Reward -->
+          <div style="display:flex;justify-content:space-between;align-items:center;background:var(--card2);padding:10px 14px;border-radius:4px;margin-bottom:6px">
+            <span style="font-size:10px;color:var(--muted2);letter-spacing:1px;text-transform:uppercase">Risk / Reward Ratio</span>
+            <span style="font-size:15px;font-weight:700;color:${rrCol}">1 : ${t.rr.toFixed(2)}</span>
+          </div>
+          ${t.isHighRisk ? `<div style="font-size:9px;color:var(--amber);text-align:center;padding:4px">⚠ HIGH RISK — tighter ${t.stopPct}% stop, capped at ${t.allocPct}% position</div>` : ''}
+        </div>
+      </div>`;
+    }
+  }
 
   document.getElementById('detailContent').innerHTML = `<div class="fade-up">
     <!-- Header -->
@@ -1094,6 +1240,9 @@ function showDetail(ticker) {
           <span class="info-val">${c.n}</span>
         </div>`).join('')}
     </div>
+
+    <!-- Trade Manager -->
+    ${tradeHTML}
 
     <!-- Mentor verdict -->
     <div class="agent-mentor">
