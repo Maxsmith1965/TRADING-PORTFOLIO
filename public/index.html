@@ -998,6 +998,59 @@ function renderCard(s) {
 }
 
 // ── STOCK DETAIL ──────────────────────────────────────────
+// ── ENTRY ZONE CALCULATOR ─────────────────────────────────
+// Blends intrinsic value + 52-week position to recommend a buy zone.
+// Answers: is the CURRENT price a good entry, or should you wait for a dip?
+function calcEntryZone(s, live) {
+  if (!live || !live.priceRaw) return null;
+  const price = live.priceRaw;
+  const intrinsic = s.intrinsic || null;
+
+  // 52-week position (0 = at low, 100 = at high)
+  let rangePos = null;
+  const hi = live.week52High && live.week52High !== 'N/A' ? parseFloat(String(live.week52High).replace('$','')) : null;
+  const lo = live.week52Low && live.week52Low !== 'N/A' ? parseFloat(String(live.week52Low).replace('$','')) : null;
+  if (hi && lo && hi > lo) rangePos = Math.round(((price - lo) / (hi - lo)) * 100);
+
+  // Intrinsic-based zones (the value anchor)
+  let zones = null, verdict = null, verdictCol = null, detail = '';
+  if (intrinsic) {
+    const strongBuy = intrinsic * 0.85;   // 15%+ below intrinsic = margin of safety
+    const fairLow   = intrinsic * 0.90;
+    const fairHigh  = intrinsic * 1.10;    // within 10% = fair zone
+    const expensive = intrinsic * 1.30;    // 30%+ above = wait
+    zones = { strongBuy, fairLow, fairHigh, expensive };
+
+    const pctVsIntrinsic = ((price - intrinsic) / intrinsic) * 100;
+
+    if (price <= strongBuy) {
+      verdict = 'STRONG BUY ZONE'; verdictCol = '#3d9e6e';
+      detail = `At ${live.price} you're ${Math.abs(pctVsIntrinsic).toFixed(0)}% BELOW intrinsic ($${intrinsic}). This is a Graham margin-of-safety entry — rare and valuable.`;
+    } else if (price <= fairHigh) {
+      verdict = 'FAIR ENTRY ZONE'; verdictCol = '#6ba83d';
+      const side = pctVsIntrinsic >= 0 ? `${pctVsIntrinsic.toFixed(0)}% above` : `${Math.abs(pctVsIntrinsic).toFixed(0)}% below`;
+      detail = `At ${live.price} you're ${side} intrinsic ($${intrinsic}) — within the fair-value band. A reasonable entry; for a bigger margin of safety, wait for a dip toward $${strongBuy.toFixed(0)}.`;
+    } else if (price <= expensive) {
+      verdict = 'SLIGHTLY EXPENSIVE'; verdictCol = '#c97d30';
+      detail = `At ${live.price} you're ${pctVsIntrinsic.toFixed(0)}% ABOVE intrinsic ($${intrinsic}). Paying a premium — only enter with a specific catalyst, or wait for a pullback toward $${fairHigh.toFixed(0)}.`;
+    } else {
+      verdict = 'WAIT — OVERVALUED'; verdictCol = '#c94a4a';
+      detail = `At ${live.price} you're ${pctVsIntrinsic.toFixed(0)}% above intrinsic ($${intrinsic}). This is well above fair value. Patience — set an alert for $${fairHigh.toFixed(0)}.`;
+    }
+  } else {
+    // No intrinsic — fall back to 52-week position logic
+    if (rangePos !== null) {
+      if (rangePos <= 30) { verdict = 'LOWER RANGE — POSSIBLE VALUE'; verdictCol = '#6ba83d'; detail = `No DCF available, but at ${rangePos}% of its 52-week range the price is in the lower third. Investigate why — could be opportunity or a falling knife.`; }
+      else if (rangePos >= 80) { verdict = 'NEAR 52W HIGH — CAUTION'; verdictCol = '#c97d30'; detail = `No DCF available. At ${rangePos}% of its 52-week range, price is near highs. Avoid chasing — wait for a pullback or confirmation.`; }
+      else { verdict = 'MID-RANGE'; verdictCol = '#c97d30'; detail = `No DCF available. At ${rangePos}% of its 52-week range. Use the Agent and Philosophy tabs for a fuller picture before entry.`; }
+    } else {
+      verdict = 'INSUFFICIENT DATA'; verdictCol = '#6b7585'; detail = 'No intrinsic value or range data available. Run the Agent Deep Dive for a fundamental view before entering.';
+    }
+  }
+
+  return { price, intrinsic, rangePos, zones, verdict, verdictCol, detail };
+}
+
 // ── TRADE MANAGER ─────────────────────────────────────────
 // Auto-calculates position size, stop loss and profit target from the LIVE price.
 function calcTrade(s, livePrice) {
@@ -1087,6 +1140,49 @@ function showDetail(ticker) {
 
   // ── Build Trade Manager card ──
   const t = calcTrade(s, live?.priceRaw);
+
+  // ── Build Entry Zone card ──
+  const ez = calcEntryZone(s, live);
+  let entryZoneHTML = '';
+  if (ez) {
+    // Visual zone bar (only if we have intrinsic zones)
+    let zoneBar = '';
+    if (ez.zones && ez.intrinsic) {
+      // Position the current price marker on a scale from strongBuy*0.9 to expensive*1.05
+      const scaleLo = ez.zones.strongBuy * 0.90;
+      const scaleHi = ez.zones.expensive * 1.05;
+      const pct = Math.min(100, Math.max(0, ((ez.price - scaleLo) / (scaleHi - scaleLo)) * 100));
+      const sbPct = ((ez.zones.strongBuy - scaleLo) / (scaleHi - scaleLo)) * 100;
+      const fhPct = ((ez.zones.fairHigh - scaleLo) / (scaleHi - scaleLo)) * 100;
+      const exPct = ((ez.zones.expensive - scaleLo) / (scaleHi - scaleLo)) * 100;
+      zoneBar = `<div style="margin:14px 0 10px">
+        <div style="position:relative;height:14px;border-radius:7px;overflow:hidden;background:linear-gradient(to right,
+          var(--green) 0%, var(--green) ${sbPct}%,
+          #6ba83d ${sbPct}%, #6ba83d ${fhPct}%,
+          var(--amber) ${fhPct}%, var(--amber) ${exPct}%,
+          var(--red) ${exPct}%, var(--red) 100%)">
+          <div style="position:absolute;top:-3px;left:${pct}%;transform:translateX(-50%);width:3px;height:20px;background:#fff;box-shadow:0 0 4px #000"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:8px;color:var(--muted);margin-top:4px">
+          <span>$${ez.zones.strongBuy.toFixed(0)} buy</span>
+          <span>$${ez.intrinsic} fair</span>
+          <span>$${ez.zones.expensive.toFixed(0)} pricey</span>
+        </div>
+        <div style="text-align:center;font-size:9px;color:var(--white);margin-top:4px">▲ Current: ${live.price}</div>
+      </div>`;
+    }
+    entryZoneHTML = `<div style="background:var(--card);border:1px solid ${ez.verdictCol};border-radius:4px;margin-bottom:10px;overflow:hidden">
+      <div style="background:${ez.verdictCol}22;padding:10px 14px;border-bottom:1px solid ${ez.verdictCol}">
+        <div style="font-size:10px;color:${ez.verdictCol};letter-spacing:2px;text-transform:uppercase;font-weight:700">🎯 Entry Zone Analysis</div>
+      </div>
+      <div style="padding:14px">
+        <div style="font-size:18px;font-weight:700;color:${ez.verdictCol};margin-bottom:8px">${ez.verdict}</div>
+        <div style="font-size:11px;color:#9aa0a8;line-height:1.7">${ez.detail}</div>
+        ${zoneBar}
+        ${ez.rangePos !== null ? `<div style="font-size:9px;color:var(--muted2);margin-top:6px;text-align:center">52-week range position: ${ez.rangePos}%</div>` : ''}
+      </div>
+    </div>`;
+  }
   let tradeHTML = '';
   if (live?.priceRaw) {
     if (t.isBlue) {
@@ -1240,6 +1336,9 @@ function showDetail(ticker) {
           <span class="info-val">${c.n}</span>
         </div>`).join('')}
     </div>
+
+    <!-- Entry Zone -->
+    ${entryZoneHTML}
 
     <!-- Trade Manager -->
     ${tradeHTML}
@@ -1873,7 +1972,8 @@ async function settingsSave() {
     const result = await resp.json().catch(() => ({}));
     if (!resp.ok || result.error) throw new Error((result.error || ('HTTP ' + resp.status)) + (result.detail ? ': ' + result.detail : ''));
     await loadLocalStocks();
-    settingsStatus('✓ ' + ticker + ' saved to watchlist', true);
+    fetchMarketData();
+    settingsStatus('✓ ' + ticker + ' saved — fetching live price...', true);
     document.getElementById('setAddForm').style.display = 'none';
     document.getElementById('setSearch').value = '';
     document.getElementById('setSearchResults').innerHTML = '';
@@ -1919,8 +2019,8 @@ function renderSettingsList() {
 document.addEventListener('DOMContentLoaded', () => {
   renderWatchlist();
   renderTags();
-  fetchMarketData();
-  loadLocalStocks();
+  // Load the full watchlist first, THEN fetch prices so newly-added stocks are included
+  loadLocalStocks().then(() => fetchMarketData());
   setInterval(fetchMarketData, 5 * 60 * 1000);
   document.getElementById('agentInput')?.addEventListener('keydown', e => { if(e.key==='Enter') runAgent('fast'); });
   document.getElementById('philInput')?.addEventListener('keydown', e => { if(e.key==='Enter') runPhil(); });
