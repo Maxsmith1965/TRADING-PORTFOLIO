@@ -10,12 +10,37 @@ const headers = {
   'Cache-Control': 'no-cache'
 };
 
-const TICKERS = [
+// Fallback list - used only if the watchlist database can't be read.
+const FALLBACK_TICKERS = [
   'NVDA','AVGO','TSM','ASML','MSFT','AAPL','GOOGL','META','AMZN',
   'MU','CEG','MBLY','CIEN','LEU','MP','TER','VRT','AMD',
   'WDC','SNDK','XRP','AMTM','IREN','TSLA','BMNR','NBIS',
   'LITE','MRVL','WIX','QCOM','TSEM','FN','COHR'
 ];
+
+// Blue-chip tickers that get full metrics (P/E + 52-week range)
+const BLUE_CHIP_TICKERS = ['NVDA','AVGO','TSM','ASML','MSFT','AAPL','GOOGL','META','AMZN'];
+
+// Pull the LIVE watchlist tickers from the same stocks function the app uses.
+// This means any stock added via Settings automatically gets a price.
+function getWatchlistTickers(host) {
+  return new Promise((resolve) => {
+    if (!host) { resolve(null); return; }
+    const url = `https://${host}/.netlify/functions/stocks`;
+    https.get(url, { timeout: 5000 }, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try {
+          const d = JSON.parse(data);
+          const all = [...(d.blueChips || []), ...(d.activeStocks || [])];
+          const tickers = all.map(s => s.ticker).filter(Boolean);
+          resolve(tickers.length ? tickers : null);
+        } catch (e) { resolve(null); }
+      });
+    }).on('error', () => resolve(null)).on('timeout', () => resolve(null));
+  });
+}
 
 function getQuote(ticker, apiKey) {
   return new Promise((resolve) => {
@@ -92,6 +117,12 @@ exports.handler = async (event) => {
   if (!FINNHUB) return { statusCode: 500, headers, body: JSON.stringify({ error: 'FINNHUB key not configured' }) };
 
   try {
+    // Get the live watchlist (includes any stocks added via Settings).
+    // Falls back to the hardcoded list if the database can't be read.
+    const host = event.headers?.host || event.headers?.Host;
+    let TICKERS = await getWatchlistTickers(host);
+    if (!TICKERS || !TICKERS.length) TICKERS = FALLBACK_TICKERS;
+
     const quotes = {};
 
     // Fetch quotes in batches of 8 with small delays to avoid rate limits
@@ -117,11 +148,13 @@ exports.handler = async (event) => {
       if (i + batchSize < TICKERS.length) await delay(200);
     }
 
-    // Fetch metrics for top 9 blue chips only (to stay within rate limits)
-    const bluechips = ['NVDA','AVGO','TSM','ASML','MSFT','AAPL','GOOGL','META','AMZN'];
-    const metricResults = await Promise.all(bluechips.map(t => getMetrics(t, FINNHUB)));
+    // Fetch metrics for blue chips PLUS any added stocks that aren't in the
+    // fallback list (so newly-added tickers also get P/E + 52-week data).
+    const added = TICKERS.filter(t => !FALLBACK_TICKERS.includes(t));
+    const metricTickers = [...new Set([...BLUE_CHIP_TICKERS, ...added])];
+    const metricResults = await Promise.all(metricTickers.map(t => getMetrics(t, FINNHUB)));
     metricResults.forEach((m, i) => {
-      const t = bluechips[i];
+      const t = metricTickers[i];
       if (quotes[t]) {
         quotes[t].pe = m.pe;
         quotes[t].week52High = m.week52High;
